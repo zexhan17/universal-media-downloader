@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  youtube-downloader:
+    build: .
+    container_name: yt-downloader
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist downloads folder on host
+      - ./downloads:/app/downloads
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+
