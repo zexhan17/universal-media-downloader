@@ -98,6 +98,9 @@ class DownloadTask:
         self.save_mode = options.get("save_mode", "browser")
         self.custom_save_path = options.get("custom_save_path", "")
         self.final_dest_path = ""
+        self.cancel_requested: bool = False
+        self.target_dir: Optional[Path] = None
+        self.tracked_files: set = set()
 
     def to_dict(self) -> dict:
         return {
@@ -381,7 +384,17 @@ class DownloaderService:
                 pass
 
     def _progress_hook(self, d: dict, task: DownloadTask, loop: asyncio.AbstractEventLoop):
+        if task.cancel_requested:
+            raise yt_dlp.utils.DownloadCancelled("Download canceled by user.")
+
         status = d.get("status")
+        filename = d.get("filename", "")
+        if filename:
+            task.tracked_files.add(str(filename))
+        tmpfilename = d.get("tmpfilename", "")
+        if tmpfilename:
+            task.tracked_files.add(str(tmpfilename))
+
         if status == "downloading":
             task.status = TaskStatus.DOWNLOADING
             downloaded = d.get("downloaded_bytes", 0)
@@ -401,7 +414,6 @@ class DownloaderService:
             if eta is not None:
                 task.eta = format_seconds(eta)
 
-            filename = d.get("filename", "")
             if filename:
                 task.filename = os.path.basename(filename)
                 task.stage = "Downloading high-quality streams..."
@@ -414,6 +426,9 @@ class DownloaderService:
             self._notify_subscribers(task, loop)
 
     def _postprocessor_hook(self, d: dict, task: DownloadTask, loop: asyncio.AbstractEventLoop):
+        if task.cancel_requested:
+            raise yt_dlp.utils.DownloadCancelled("Download canceled by user.")
+
         status = d.get("status")
         postprocessor = d.get("postprocessor", "")
         if status == "started":
@@ -430,6 +445,9 @@ class DownloaderService:
             self._notify_subscribers(task, loop)
 
     def _execute_ytdlp_download(self, task: DownloadTask, loop: asyncio.AbstractEventLoop, with_subtitles: bool = True):
+        if task.cancel_requested:
+            raise yt_dlp.utils.DownloadCancelled("Download canceled by user.")
+
         opts = task.options
         quality = opts.get("quality", "best")
         container = opts.get("container", "mp4").lower()
@@ -449,6 +467,7 @@ class DownloaderService:
         else:
             target_dir = DOWNLOADS_DIR
 
+        task.target_dir = target_dir
         outtmpl = str(target_dir / f"%(title).120B [{quality} %(id)s {task.task_id[:6]}].%(ext)s")
 
         # Build format_spec and format_sort to guarantee true resolution
@@ -526,6 +545,9 @@ class DownloaderService:
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(task.url, download=True)
+            if task.cancel_requested:
+                raise yt_dlp.utils.DownloadCancelled("Download canceled by user.")
+
             raw_title = info.get("title", task.title)
             task.title = raw_title.replace("\n", " ").strip()
             task.thumbnail = info.get("thumbnail") or task.thumbnail
@@ -565,10 +587,62 @@ class DownloaderService:
                 task.speed = "Complete"
                 task.eta = "00:00"
             else:
-                raise FileNotFoundError("Could not locate final downloaded output file.")
+                if not task.cancel_requested:
+                    raise FileNotFoundError("Could not locate final downloaded output file.")
+
+    def _cleanup_task_files(self, task: DownloadTask):
+        """Clean up any temporary, partial (.part, .temp, .ytdl), or final files associated with this task."""
+        # 1. Remove tracked files
+        for f_path_str in list(task.tracked_files):
+            try:
+                p = Path(f_path_str)
+                if p.exists() and p.is_file():
+                    p.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+        # 2. Remove task.filepath if present
+        if task.filepath:
+            try:
+                p = Path(task.filepath)
+                if p.exists() and p.is_file():
+                    p.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+        # 3. Check target directory and downloads directory for files matching task ID
+        dirs_to_check = [DOWNLOADS_DIR]
+        if task.target_dir and task.target_dir.exists() and task.target_dir not in dirs_to_check:
+            dirs_to_check.append(task.target_dir)
+        if task.custom_save_path:
+            try:
+                custom_p = Path(os.path.expanduser(task.custom_save_path)).resolve()
+                if custom_p.exists() and custom_p not in dirs_to_check:
+                    dirs_to_check.append(custom_p)
+            except Exception:
+                pass
+
+        short_id = task.task_id[:6]
+        full_id = task.task_id
+
+        for d in dirs_to_check:
+            try:
+                patterns = [f"*{short_id}*", f"*{full_id}*"]
+                for pat in patterns:
+                    for f in list(d.glob(pat)):
+                        try:
+                            if f.is_file():
+                                f.unlink(missing_ok=True)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
 
     def _download_worker(self, task: DownloadTask, loop: asyncio.AbstractEventLoop):
         try:
+            if task.cancel_requested:
+                raise yt_dlp.utils.DownloadCancelled("Download canceled by user.")
+
             task.status = TaskStatus.DOWNLOADING
             task.stage = "Connecting to media source..."
             self._notify_subscribers(task, loop)
@@ -576,6 +650,8 @@ class DownloaderService:
             try:
                 self._execute_ytdlp_download(task, loop, with_subtitles=task.options.get("subtitles_enabled", False))
             except Exception as e:
+                if task.cancel_requested:
+                    raise yt_dlp.utils.DownloadCancelled("Download canceled by user.")
                 err_str = str(e).lower()
                 if "subtitle" in err_str or "429" in err_str or "timedtext" in err_str:
                     print(f"Notice: Subtitle error ({e}), retrying download without subtitles...")
@@ -584,6 +660,9 @@ class DownloaderService:
                     self._execute_ytdlp_download(task, loop, with_subtitles=False)
                 else:
                     raise e
+
+            if task.cancel_requested:
+                raise yt_dlp.utils.DownloadCancelled("Download canceled by user.")
 
             task.status = TaskStatus.COMPLETED
             task.stage = "Completed successfully!"
@@ -600,11 +679,52 @@ class DownloaderService:
 
             self._notify_subscribers(task, loop)
 
-        except Exception as e:
-            task.status = TaskStatus.FAILED
-            task.stage = "Failed"
-            task.error = str(e)
+        except (yt_dlp.utils.DownloadCancelled, Exception) as e:
+            if task.cancel_requested or isinstance(e, yt_dlp.utils.DownloadCancelled):
+                task.status = TaskStatus.CANCELED
+                task.stage = "Canceled by user"
+                task.error = "Download canceled by user."
+                task.speed = "-- MB/s"
+                task.eta = "--:--"
+                self._cleanup_task_files(task)
+                self._notify_subscribers(task, loop)
+            else:
+                task.status = TaskStatus.FAILED
+                task.stage = "Failed"
+                task.error = str(e)
+                self._cleanup_task_files(task)
+                self._notify_subscribers(task, loop)
+
+    def cancel_task(self, task_id: str, loop: Optional[asyncio.AbstractEventLoop] = None) -> bool:
+        """Cancel an active or queued task and clean up all partial/completed files."""
+        task = self.tasks.get(task_id)
+        if not task:
+            return False
+
+        task.cancel_requested = True
+        task.status = TaskStatus.CANCELED
+        task.stage = "Canceled by user"
+        task.error = "Download canceled by user."
+        task.speed = "-- MB/s"
+        task.eta = "--:--"
+        self._cleanup_task_files(task)
+        if loop:
             self._notify_subscribers(task, loop)
+        return True
+
+    def delete_task(self, task_id: str, delete_files: bool = True) -> bool:
+        """Remove task from active tasks and optionally clean up files."""
+        task = self.tasks.get(task_id)
+        if not task:
+            return False
+        if delete_files or task.status != TaskStatus.COMPLETED:
+            self.cancel_task(task_id)
+        self.tasks.pop(task_id, None)
+        return True
+
+    def get_all_tasks(self) -> List[dict]:
+        """Return list of all current tasks sorted by creation date."""
+        return [t.to_dict() for t in sorted(self.tasks.values(), key=lambda x: x.created_at, reverse=True)]
 
     def get_system_directories(self) -> List[dict]:
         """Return common default user directories for local download destination."""

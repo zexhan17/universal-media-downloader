@@ -359,62 +359,25 @@
       </div>
     </section>
 
-    <!-- Active Download Progress Card (Appears during download) -->
-    <section id="progress-card" class="hidden pro-card rounded-2xl p-6 sm:p-8 space-y-5 border-indigo-500/40">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-          <div id="task-status-icon" class="p-2.5 rounded-xl bg-indigo-500/20 text-indigo-400">
-            <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
-          </div>
-          <div>
-            <h3 id="task-title" class="text-base sm:text-lg font-bold text-white line-clamp-1">
-              Downloading media...
-            </h3>
-            <p id="task-stage" class="text-xs text-indigo-400 font-medium">
-              Initializing download streams...
-            </p>
-          </div>
+    <!-- Active Downloads & Background Tasks Manager -->
+    <section id="downloads-manager" class="hidden space-y-4">
+      <div class="flex items-center justify-between px-1">
+        <div class="flex items-center gap-2.5">
+          <div class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></div>
+          <h3 class="text-base font-bold text-white tracking-tight">Active Downloads & Queue</h3>
+          <span id="tasks-count-badge"
+            class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">0
+            Tasks</span>
         </div>
-        <div class="text-right">
-          <span id="task-percent" class="text-2xl font-black font-mono text-indigo-400">0%</span>
-        </div>
+        <button type="button" id="btn-clear-finished"
+          class="text-xs text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          <span>Clear Finished</span>
+        </button>
       </div>
 
-      <!-- Progress Bar -->
-      <div class="w-full bg-slate-900 rounded-full h-3.5 p-0.5 overflow-hidden border border-slate-800">
-        <div id="task-progress-bar"
-          class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 progress-animated-striped transition-all duration-200"
-          style="width: 0%"></div>
-      </div>
-
-      <!-- Stats Row -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
-        <div class="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
-          <span class="text-slate-400 block text-[10px] uppercase font-sans">Speed</span>
-          <span id="task-speed" class="text-slate-200 font-semibold">-- MB/s</span>
-        </div>
-        <div class="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
-          <span class="text-slate-400 block text-[10px] uppercase font-sans">ETA</span>
-          <span id="task-eta" class="text-slate-200 font-semibold">--:--</span>
-        </div>
-        <div class="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
-          <span class="text-slate-400 block text-[10px] uppercase font-sans">Downloaded</span>
-          <span id="task-downloaded" class="text-slate-200 font-semibold">0 MB</span>
-        </div>
-        <div class="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
-          <span class="text-slate-400 block text-[10px] uppercase font-sans">Total Size</span>
-          <span id="task-total-size" class="text-slate-200 font-semibold">-- MB</span>
-        </div>
-      </div>
-
-      <!-- Error Box (Shown on failure) -->
-      <div id="task-error-box"
-        class="hidden p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs">
-        <div class="font-semibold mb-1 flex items-center gap-1.5">
-          <i data-lucide="alert-circle" class="w-4 h-4"></i>
-          Download Error
-        </div>
-        <p id="task-error-msg">Unknown error</p>
+      <!-- Container where parallel task cards are appended dynamically -->
+      <div id="tasks-list" class="space-y-4">
       </div>
     </section>
 

@@ -50,25 +50,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const presetPathsContainer = document.getElementById('preset-paths-container');
   const btnStartCustomDownload = document.getElementById('btn-start-custom-download');
 
-  // Progress Card Elements
-  const progressCard = document.getElementById('progress-card');
-  const taskTitle = document.getElementById('task-title');
-  const taskStage = document.getElementById('task-stage');
-  const taskPercent = document.getElementById('task-percent');
-  const taskProgressBar = document.getElementById('task-progress-bar');
-  const taskSpeed = document.getElementById('task-speed');
-  const taskEta = document.getElementById('task-eta');
-  const taskDownloaded = document.getElementById('task-downloaded');
-  const taskTotalSize = document.getElementById('task-total-size');
-  const taskErrorBox = document.getElementById('task-error-box');
-  const taskErrorMsg = document.getElementById('task-error-msg');
-  const taskStatusIcon = document.getElementById('task-status-icon');
+  // Downloads Manager Elements
+  const downloadsManager = document.getElementById('downloads-manager');
+  const tasksList = document.getElementById('tasks-list');
+  const tasksCountBadge = document.getElementById('tasks-count-badge');
+  const btnClearFinished = document.getElementById('btn-clear-finished');
 
   // App State
   let currentVideoInfo = null;
   let selectedResolution = 'best';
-  let activeEventSource = null;
-  let currentTask = null;
+  const taskConnections = new Map(); // taskId -> { eventSource, status }
 
   // Initialize
   loadSystemPaths();
@@ -432,26 +423,9 @@ document.addEventListener('DOMContentLoaded', () => {
     triggerDownload(payload);
   });
 
-  // Start Download and Connect SSE
+  // Start Download and Append to Queue
   async function triggerDownload(payload) {
     try {
-      progressCard.classList.remove('hidden');
-      taskTitle.textContent = currentVideoInfo?.title || 'Downloading media...';
-      taskStage.textContent = 'Queueing download task...';
-      taskPercent.textContent = '0%';
-      taskProgressBar.style.width = '0%';
-      taskProgressBar.className = 'h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 progress-animated-striped transition-all duration-200';
-      taskSpeed.textContent = '-- MB/s';
-      taskEta.textContent = '--:--';
-      taskDownloaded.textContent = '0 MB';
-      taskTotalSize.textContent = '-- MB';
-      taskErrorBox.classList.add('hidden');
-      taskStatusIcon.className = 'p-2.5 rounded-xl bg-indigo-500/20 text-indigo-400';
-      taskStatusIcon.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>';
-      lucide.createIcons();
-
-      progressCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
       const response = await fetch('/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -464,105 +438,559 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const { task_id } = await response.json();
-      currentTask = task_id;
-      showToast('Download started in background!', 'info');
+      downloadsManager.classList.remove('hidden');
+
+      // Create Dynamic Task Card in Task List
+      createTaskCard(task_id, currentVideoInfo, payload);
+      updateTasksBadge();
+
+      showToast('Download started in background! You can start another in parallel.', 'success');
 
       // Listen to SSE progress
-      listenToProgress(task_id, payload.save_mode);
+      listenToTaskProgress(task_id, payload.save_mode);
+
+      // Keep top form ready for parallel video downloads
+      videoUrlInput.value = '';
+      videoUrlInput.focus();
 
     } catch (err) {
       showToast(err.message, 'error');
-      taskErrorBox.classList.remove('hidden');
-      taskErrorMsg.textContent = err.message;
-      taskStage.textContent = 'Failed to start download';
     }
   }
 
-  // SSE Stream Listener
-  function listenToProgress(taskId, saveMode) {
-    if (activeEventSource) {
-      activeEventSource.close();
+  // Create Task Card DOM
+  function createTaskCard(taskId, info, payload) {
+    const card = document.createElement('div');
+    card.id = `task-card-${taskId}`;
+    card.className = 'pro-card rounded-2xl p-5 sm:p-6 space-y-4 border-indigo-500/30 transition-all duration-300';
+    card.dataset.status = 'queued';
+
+    const qualityLabel = payload.quality === 'best' ? 'Auto Max' : (payload.quality === 'audio_only' ? 'MP3 Audio' : payload.quality);
+    const containerLabel = (payload.container || 'mp4').toUpperCase();
+    const modeLabel = payload.save_mode === 'local_folder' ? 'Local Disk' : 'Browser Download';
+
+    card.innerHTML = `
+      <!-- Header Row -->
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-start space-x-3 min-w-0 flex-1">
+          <div id="status-icon-${taskId}" class="p-2.5 rounded-xl bg-indigo-500/20 text-indigo-400 shrink-0 mt-0.5">
+            <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-1.5 mb-1">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-800 text-indigo-300 font-mono tracking-wide border border-slate-700">
+                ${qualityLabel} • ${containerLabel}
+              </span>
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-900 text-slate-400 border border-slate-800">
+                ${modeLabel}
+              </span>
+            </div>
+            <h4 id="title-${taskId}" class="text-sm sm:text-base font-bold text-white line-clamp-1">
+              ${info?.title || 'Downloading media stream...'}
+            </h4>
+            <p id="stage-${taskId}" class="text-xs text-indigo-400 font-medium mt-0.5">
+              Connecting to media source...
+            </p>
+          </div>
+        </div>
+
+        <!-- Right Action Controls -->
+        <div class="flex items-center gap-2 shrink-0">
+          <span id="percent-${taskId}" class="text-lg sm:text-2xl font-black font-mono text-indigo-400">0%</span>
+          <button type="button" id="btn-cancel-${taskId}" title="Stop download and remove temporary files"
+            class="px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 text-xs font-semibold flex items-center gap-1.5 transition">
+            <i data-lucide="square" class="w-3.5 h-3.5 fill-red-400"></i>
+            <span class="hidden sm:inline">Stop</span>
+          </button>
+          <button type="button" id="btn-dismiss-${taskId}" title="Dismiss card"
+            class="hidden px-2 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white text-xs transition">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="w-full bg-slate-900 rounded-full h-3 p-0.5 overflow-hidden border border-slate-800">
+        <div id="bar-${taskId}"
+          class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 progress-animated-striped transition-all duration-200"
+          style="width: 0%"></div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div id="stats-${taskId}" class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+        <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
+          <span class="text-slate-400 block text-[9px] uppercase font-sans">Speed</span>
+          <span id="speed-${taskId}" class="text-slate-200 font-semibold text-[11px]">-- MB/s</span>
+        </div>
+        <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
+          <span class="text-slate-400 block text-[9px] uppercase font-sans">ETA</span>
+          <span id="eta-${taskId}" class="text-slate-200 font-semibold text-[11px]">--:--</span>
+        </div>
+        <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
+          <span class="text-slate-400 block text-[9px] uppercase font-sans">Downloaded</span>
+          <span id="downloaded-${taskId}" class="text-slate-200 font-semibold text-[11px]">0 MB</span>
+        </div>
+        <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800">
+          <span class="text-slate-400 block text-[9px] uppercase font-sans">Total Size</span>
+          <span id="total-size-${taskId}" class="text-slate-200 font-semibold text-[11px]">-- MB</span>
+        </div>
+      </div>
+
+      <!-- Completion Action Area (Revealed on Complete) -->
+      <div id="completion-box-${taskId}" class="hidden space-y-3 pt-3 border-t border-slate-800/80">
+        <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2.5">
+          <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+          <div class="flex-1 min-w-0">
+            <p id="completion-title-${taskId}" class="font-semibold text-white">Media Ready!</p>
+            <p id="completion-desc-${taskId}" class="text-slate-300 text-xs mt-0.5">Your file has finished processing.</p>
+          </div>
+        </div>
+
+        <div id="path-box-${taskId}" class="hidden bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 text-xs flex items-center justify-between gap-2">
+          <code id="path-text-${taskId}" class="text-indigo-300 font-mono text-[11px] truncate flex-1 select-all"></code>
+          <button type="button" id="btn-copy-path-${taskId}" class="shrink-0 px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 transition">
+            <i data-lucide="copy" class="w-3 h-3"></i>
+            <span id="copy-text-${taskId}">Copy Path</span>
+          </button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5 pt-1">
+          <a id="btn-download-${taskId}" href="/api/file/${taskId}" download
+            class="btn-primary-action flex-1 min-w-[180px] py-2.5 px-4 rounded-xl font-bold text-white text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-md shadow-indigo-500/20">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span id="btn-download-text-${taskId}">Download File Now</span>
+          </a>
+          <button type="button" id="btn-open-folder-${taskId}" class="hidden btn-secondary py-2.5 px-3.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+            <i data-lucide="folder" class="w-3.5 h-3.5 text-slate-300"></i>
+            <span>Open Folder</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Error / Canceled Notice Area -->
+      <div id="notice-box-${taskId}" class="hidden p-3 rounded-xl text-xs flex items-start gap-2.5">
+        <i id="notice-icon-${taskId}" data-lucide="alert-circle" class="w-4 h-4 shrink-0 mt-0.5"></i>
+        <div class="flex-1 min-w-0">
+          <p id="notice-title-${taskId}" class="font-semibold"></p>
+          <p id="notice-desc-${taskId}" class="text-slate-300 text-xs mt-0.5"></p>
+        </div>
+      </div>
+    `;
+
+    tasksList.prepend(card);
+    lucide.createIcons();
+
+    // Attach Stop / Cancel Button Event
+    const btnCancel = card.querySelector(`#btn-cancel-${taskId}`);
+    btnCancel.addEventListener('click', () => {
+      cancelTaskDownload(taskId);
+    });
+
+    // Attach Dismiss Button Event
+    const btnDismiss = card.querySelector(`#btn-dismiss-${taskId}`);
+    btnDismiss.addEventListener('click', () => {
+      removeTaskCard(taskId);
+    });
+
+    // Attach Copy Path Button Event
+    const btnCopyPath = card.querySelector(`#btn-copy-path-${taskId}`);
+    const pathText = card.querySelector(`#path-text-${taskId}`);
+    const copyText = card.querySelector(`#copy-text-${taskId}`);
+    if (btnCopyPath) {
+      btnCopyPath.addEventListener('click', async () => {
+        if (!pathText.textContent) return;
+        try {
+          await navigator.clipboard.writeText(pathText.textContent);
+          copyText.textContent = 'Copied!';
+          showToast('File path copied to clipboard!', 'info');
+          setTimeout(() => { copyText.textContent = 'Copy Path'; }, 2000);
+        } catch (e) {
+          showToast('Failed to copy path', 'error');
+        }
+      });
     }
 
-    activeEventSource = new EventSource(`/api/progress/${taskId}`);
+    // Attach Open Folder Event
+    const btnOpenFolder = card.querySelector(`#btn-open-folder-${taskId}`);
+    if (btnOpenFolder) {
+      btnOpenFolder.addEventListener('click', async () => {
+        const path = btnOpenFolder.dataset.folderPath;
+        if (!path) return;
+        try {
+          const res = await fetch('/api/open-folder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path }),
+          });
+          const result = await res.json();
+          if (result.success) {
+            showToast('Opened folder in file manager', 'success');
+          } else {
+            showToast(result.message || 'Could not launch file manager', 'error');
+          }
+        } catch (err) {
+          showToast('Failed to open folder', 'error');
+        }
+      });
+    }
 
-    activeEventSource.onmessage = (event) => {
+    // Attach Download feedback
+    const btnDownload = card.querySelector(`#btn-download-${taskId}`);
+    if (btnDownload) {
+      btnDownload.addEventListener('click', () => {
+        showToast('Starting browser file download...', 'info');
+      });
+    }
+  }
+
+  // SSE Stream Listener for Specific Task
+  function listenToTaskProgress(taskId, saveMode) {
+    if (taskConnections.has(taskId)) {
+      taskConnections.get(taskId).eventSource?.close();
+    }
+
+    const eventSource = new EventSource(`/api/progress/${taskId}`);
+    taskConnections.set(taskId, { eventSource, status: 'running' });
+
+    eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        updateProgressUI(data);
+        updateTaskUI(taskId, data, saveMode);
 
         if (data.status === 'completed') {
-          activeEventSource.close();
-          onDownloadCompleted(data, taskId, saveMode);
+          eventSource.close();
+          taskConnections.set(taskId, { eventSource: null, status: 'completed' });
+          onTaskCompleted(taskId, data, saveMode);
+          updateTasksBadge();
+        } else if (data.status === 'canceled') {
+          eventSource.close();
+          taskConnections.set(taskId, { eventSource: null, status: 'canceled' });
+          onTaskCanceled(taskId, data);
+          updateTasksBadge();
         } else if (data.status === 'failed') {
-          activeEventSource.close();
-          onDownloadFailed(data);
+          eventSource.close();
+          taskConnections.set(taskId, { eventSource: null, status: 'failed' });
+          onTaskFailed(taskId, data);
+          updateTasksBadge();
         }
       } catch (e) {
         console.error('Error parsing progress data', e);
       }
     };
 
-    activeEventSource.onerror = (err) => {
-      console.warn('SSE stream disconnected, polling status...', err);
+    eventSource.onerror = (err) => {
+      console.warn(`SSE stream disconnected for task ${taskId}`, err);
     };
   }
 
-  function updateProgressUI(data) {
-    if (data.title) taskTitle.textContent = data.title;
-    if (data.stage) taskStage.textContent = data.stage;
+  // Update Task UI
+  function updateTaskUI(taskId, data, saveMode) {
+    const card = document.getElementById(`task-card-${taskId}`);
+    if (!card) return;
+
+    card.dataset.status = 'running';
+    const titleEl = card.querySelector(`#title-${taskId}`);
+    const stageEl = card.querySelector(`#stage-${taskId}`);
+    const percentEl = card.querySelector(`#percent-${taskId}`);
+    const barEl = card.querySelector(`#bar-${taskId}`);
+    const speedEl = card.querySelector(`#speed-${taskId}`);
+    const etaEl = card.querySelector(`#eta-${taskId}`);
+    const downloadedEl = card.querySelector(`#downloaded-${taskId}`);
+    const totalSizeEl = card.querySelector(`#total-size-${taskId}`);
+
+    if (data.title && titleEl) titleEl.textContent = data.title;
+    if (data.stage && stageEl) stageEl.textContent = data.stage;
 
     const pct = data.progress || 0;
-    taskPercent.textContent = `${pct.toFixed(0)}%`;
-    taskProgressBar.style.width = `${pct}%`;
+    if (percentEl) percentEl.textContent = `${pct.toFixed(0)}%`;
+    if (barEl) barEl.style.width = `${pct}%`;
 
-    taskSpeed.textContent = data.speed || '-- MB/s';
-    taskEta.textContent = data.eta || '--:--';
-    taskDownloaded.textContent = formatBytes(data.downloaded_bytes);
-    taskTotalSize.textContent = data.total_bytes ? formatBytes(data.total_bytes) : (data.file_size_str || '-- MB');
+    if (speedEl) speedEl.textContent = data.speed || '-- MB/s';
+    if (etaEl) etaEl.textContent = data.eta || '--:--';
+    if (downloadedEl) downloadedEl.textContent = formatBytes(data.downloaded_bytes);
+    if (totalSizeEl) totalSizeEl.textContent = data.total_bytes ? formatBytes(data.total_bytes) : (data.file_size_str || '-- MB');
   }
 
-  function onDownloadCompleted(data, taskId, saveMode) {
-    taskPercent.textContent = '100%';
-    taskProgressBar.style.width = '100%';
-    taskProgressBar.className = 'h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300';
-    taskStage.textContent = '✓ Download & Processing Complete!';
+  // Task Completed Handler
+  function onTaskCompleted(taskId, data, saveMode) {
+    const card = document.getElementById(`task-card-${taskId}`);
+    if (!card) return;
 
-    // Replace rotating spinner with static green checkmark icon
-    taskStatusIcon.className = 'p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400';
-    taskStatusIcon.innerHTML = '<i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>';
+    card.dataset.status = 'completed';
+    card.classList.remove('border-indigo-500/30');
+    card.classList.add('border-emerald-500/40');
 
-    taskSpeed.textContent = 'Complete';
-    taskEta.textContent = '00:00';
-
-    const finalSize = data.file_size_str || formatBytes(data.file_size || data.total_bytes);
-    taskDownloaded.textContent = finalSize;
-    taskTotalSize.textContent = finalSize;
-
-    // Trigger automatic browser download
-    if (saveMode === 'browser') {
-      const a = document.createElement('a');
-      a.href = `/api/file/${taskId}`;
-      a.setAttribute('download', data.filename || 'video.mp4');
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => a.remove(), 300);
-      showToast('Download complete! Saving to your device...', 'success');
-    } else {
-      showToast(`Saved to folder: ${data.final_dest_path || 'Local storage'}`, 'success');
+    const statusIcon = card.querySelector(`#status-icon-${taskId}`);
+    if (statusIcon) {
+      statusIcon.className = 'p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0 mt-0.5';
+      statusIcon.innerHTML = '<i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>';
     }
 
+    const stageEl = card.querySelector(`#stage-${taskId}`);
+    if (stageEl) stageEl.textContent = '✓ Download & Processing Complete!';
+
+    const percentEl = card.querySelector(`#percent-${taskId}`);
+    if (percentEl) {
+      percentEl.textContent = '100%';
+      percentEl.className = 'text-lg sm:text-2xl font-black font-mono text-emerald-400';
+    }
+
+    const barEl = card.querySelector(`#bar-${taskId}`);
+    if (barEl) {
+      barEl.style.width = '100%';
+      barEl.className = 'h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300';
+    }
+
+    const speedEl = card.querySelector(`#speed-${taskId}`);
+    if (speedEl) speedEl.textContent = 'Complete';
+    const etaEl = card.querySelector(`#eta-${taskId}`);
+    if (etaEl) etaEl.textContent = '00:00';
+
+    const finalSize = data.file_size_str || formatBytes(data.file_size || data.total_bytes);
+    const downloadedEl = card.querySelector(`#downloaded-${taskId}`);
+    if (downloadedEl) downloadedEl.textContent = finalSize;
+    const totalSizeEl = card.querySelector(`#total-size-${taskId}`);
+    if (totalSizeEl) totalSizeEl.textContent = finalSize;
+
+    // Toggle buttons: hide Stop, show Dismiss
+    const btnCancel = card.querySelector(`#btn-cancel-${taskId}`);
+    if (btnCancel) btnCancel.classList.add('hidden');
+    const btnDismiss = card.querySelector(`#btn-dismiss-${taskId}`);
+    if (btnDismiss) btnDismiss.classList.remove('hidden');
+
+    // Configure completion box
+    const completionBox = card.querySelector(`#completion-box-${taskId}`);
+    const completionTitle = card.querySelector(`#completion-title-${taskId}`);
+    const completionDesc = card.querySelector(`#completion-desc-${taskId}`);
+    const pathBox = card.querySelector(`#path-box-${taskId}`);
+    const pathText = card.querySelector(`#path-text-${taskId}`);
+    const btnDownload = card.querySelector(`#btn-download-${taskId}`);
+    const btnDownloadText = card.querySelector(`#btn-download-text-${taskId}`);
+    const btnOpenFolder = card.querySelector(`#btn-open-folder-${taskId}`);
+
+    if (btnDownload) {
+      btnDownload.href = `/api/file/${taskId}`;
+      btnDownload.setAttribute('download', data.filename || 'video.mp4');
+    }
+    if (btnDownloadText) {
+      btnDownloadText.textContent = `Download File (${finalSize})`;
+    }
+
+    if (saveMode === 'local_folder') {
+      const destPath = data.final_dest_path || data.custom_save_path || '';
+      if (completionTitle) completionTitle.textContent = 'Saved to Local Folder!';
+      if (completionDesc) completionDesc.textContent = 'File written to disk. Click below to download a browser copy or open the directory.';
+      if (pathBox) pathBox.classList.remove('hidden');
+      if (pathText) pathText.textContent = destPath;
+
+      if (btnOpenFolder) {
+        const folderPath = destPath.includes('/') ? destPath.substring(0, destPath.lastIndexOf('/')) || '/' : destPath;
+        btnOpenFolder.dataset.folderPath = folderPath || destPath;
+        btnOpenFolder.classList.remove('hidden');
+      }
+      showToast(`Saved to folder: ${destPath}`, 'success');
+    } else {
+      if (completionTitle) completionTitle.textContent = 'Media Ready for Download!';
+      if (completionDesc) completionDesc.textContent = 'If the download did not start automatically, click Download File below.';
+      if (pathBox) pathBox.classList.add('hidden');
+      if (btnOpenFolder) btnOpenFolder.classList.add('hidden');
+
+      // Auto download attempt
+      try {
+        const a = document.createElement('a');
+        a.href = `/api/file/${taskId}`;
+        a.setAttribute('download', data.filename || 'video.mp4');
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => a.remove(), 400);
+        showToast('Download complete! Saving to your device...', 'success');
+      } catch (e) {
+        console.warn('Auto download error', e);
+      }
+    }
+
+    if (completionBox) completionBox.classList.remove('hidden');
     lucide.createIcons();
   }
 
-  function onDownloadFailed(data) {
-    taskStatusIcon.className = 'p-2.5 rounded-xl bg-red-500/20 text-red-400';
-    taskStatusIcon.innerHTML = '<i data-lucide="alert-circle" class="w-5 h-5 text-red-400"></i>';
-    taskStage.textContent = 'Download failed.';
-    taskErrorBox.classList.remove('hidden');
-    taskErrorMsg.textContent = data.error || 'An unexpected error occurred during processing.';
+  // Task Canceled Handler
+  function onTaskCanceled(taskId, data) {
+    const card = document.getElementById(`task-card-${taskId}`);
+    if (!card) return;
+
+    card.dataset.status = 'canceled';
+    card.classList.remove('border-indigo-500/30', 'border-emerald-500/40');
+    card.classList.add('border-slate-800');
+
+    const statusIcon = card.querySelector(`#status-icon-${taskId}`);
+    if (statusIcon) {
+      statusIcon.className = 'p-2.5 rounded-xl bg-slate-800 text-slate-400 shrink-0 mt-0.5';
+      statusIcon.innerHTML = '<i data-lucide="square" class="w-5 h-5 text-slate-400"></i>';
+    }
+
+    const stageEl = card.querySelector(`#stage-${taskId}`);
+    if (stageEl) {
+      stageEl.textContent = 'Download canceled and temporary files deleted.';
+      stageEl.className = 'text-xs text-slate-400 font-medium mt-0.5';
+    }
+
+    const percentEl = card.querySelector(`#percent-${taskId}`);
+    if (percentEl) {
+      percentEl.textContent = 'Canceled';
+      percentEl.className = 'text-sm sm:text-base font-bold text-slate-400';
+    }
+
+    const barEl = card.querySelector(`#bar-${taskId}`);
+    if (barEl) {
+      barEl.className = 'h-full rounded-full bg-slate-700 transition-all duration-300';
+    }
+
+    // Toggle buttons: hide Stop, show Dismiss
+    const btnCancel = card.querySelector(`#btn-cancel-${taskId}`);
+    if (btnCancel) btnCancel.classList.add('hidden');
+    const btnDismiss = card.querySelector(`#btn-dismiss-${taskId}`);
+    if (btnDismiss) btnDismiss.classList.remove('hidden');
+
+    // Hide completion box
+    const completionBox = card.querySelector(`#completion-box-${taskId}`);
+    if (completionBox) completionBox.classList.add('hidden');
+
+    // Show notice box
+    const noticeBox = card.querySelector(`#notice-box-${taskId}`);
+    const noticeTitle = card.querySelector(`#notice-title-${taskId}`);
+    const noticeDesc = card.querySelector(`#notice-desc-${taskId}`);
+    const noticeIcon = card.querySelector(`#notice-icon-${taskId}`);
+
+    if (noticeBox) {
+      noticeBox.className = 'p-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 text-xs flex items-start gap-2.5';
+      noticeBox.classList.remove('hidden');
+    }
+    if (noticeIcon) noticeIcon.outerHTML = '<i data-lucide="check" class="w-4 h-4 text-slate-400 shrink-0 mt-0.5"></i>';
+    if (noticeTitle) noticeTitle.textContent = 'Download Stopped';
+    if (noticeDesc) noticeDesc.textContent = 'The download was stopped and all partial / incomplete files were cleanly deleted.';
+
+    lucide.createIcons();
+  }
+
+  // Task Failed Handler
+  function onTaskFailed(taskId, data) {
+    const card = document.getElementById(`task-card-${taskId}`);
+    if (!card) return;
+
+    card.dataset.status = 'failed';
+    card.classList.remove('border-indigo-500/30');
+    card.classList.add('border-red-500/40');
+
+    const statusIcon = card.querySelector(`#status-icon-${taskId}`);
+    if (statusIcon) {
+      statusIcon.className = 'p-2.5 rounded-xl bg-red-500/20 text-red-400 shrink-0 mt-0.5';
+      statusIcon.innerHTML = '<i data-lucide="alert-circle" class="w-5 h-5 text-red-400"></i>';
+    }
+
+    const stageEl = card.querySelector(`#stage-${taskId}`);
+    if (stageEl) {
+      stageEl.textContent = 'Download failed.';
+      stageEl.className = 'text-xs text-red-400 font-medium mt-0.5';
+    }
+
+    const percentEl = card.querySelector(`#percent-${taskId}`);
+    if (percentEl) {
+      percentEl.textContent = 'Failed';
+      percentEl.className = 'text-sm sm:text-base font-bold text-red-400';
+    }
+
+    const barEl = card.querySelector(`#bar-${taskId}`);
+    if (barEl) {
+      barEl.className = 'h-full rounded-full bg-red-500/60 transition-all duration-300';
+    }
+
+    // Toggle buttons
+    const btnCancel = card.querySelector(`#btn-cancel-${taskId}`);
+    if (btnCancel) btnCancel.classList.add('hidden');
+    const btnDismiss = card.querySelector(`#btn-dismiss-${taskId}`);
+    if (btnDismiss) btnDismiss.classList.remove('hidden');
+
+    // Show error notice
+    const noticeBox = card.querySelector(`#notice-box-${taskId}`);
+    const noticeTitle = card.querySelector(`#notice-title-${taskId}`);
+    const noticeDesc = card.querySelector(`#notice-desc-${taskId}`);
+
+    if (noticeBox) {
+      noticeBox.className = 'p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start gap-2.5';
+      noticeBox.classList.remove('hidden');
+    }
+    if (noticeTitle) noticeTitle.textContent = 'Download Error';
+    if (noticeDesc) noticeDesc.textContent = data.error || 'An unexpected error occurred during download.';
+
     lucide.createIcons();
     showToast(`Error: ${data.error || 'Download failed'}`, 'error');
+  }
+
+  // Cancel Task API Trigger
+  async function cancelTaskDownload(taskId) {
+    showToast('Stopping download and deleting files...', 'info');
+    try {
+      const conn = taskConnections.get(taskId);
+      if (conn?.eventSource) {
+        conn.eventSource.close();
+      }
+
+      await fetch(`/api/task/${taskId}/cancel`, {
+        method: 'POST',
+      });
+      onTaskCanceled(taskId, { error: 'Download canceled by user.' });
+      updateTasksBadge();
+      showToast('Download stopped. All partial files were cleanly deleted.', 'info');
+    } catch (err) {
+      showToast('Failed to cancel task: ' + err.message, 'error');
+    }
+  }
+
+  // Remove Task Card
+  function removeTaskCard(taskId) {
+    const card = document.getElementById(`task-card-${taskId}`);
+    if (card) {
+      card.classList.add('opacity-0', 'scale-95');
+      setTimeout(() => {
+        card.remove();
+        taskConnections.delete(taskId);
+        updateTasksBadge();
+      }, 250);
+    }
+  }
+
+  // Clear Finished Button
+  btnClearFinished.addEventListener('click', () => {
+    const finishedCards = tasksList.querySelectorAll('[data-status="completed"], [data-status="canceled"], [data-status="failed"]');
+    finishedCards.forEach(card => {
+      const taskId = card.id.replace('task-card-', '');
+      removeTaskCard(taskId);
+    });
+    showToast('Cleared completed and canceled tasks', 'info');
+  });
+
+  // Update Tasks Count Badge
+  function updateTasksBadge() {
+    const total = tasksList.children.length;
+    let active = 0;
+    tasksList.querySelectorAll('[data-status]').forEach(card => {
+      if (card.dataset.status === 'running' || card.dataset.status === 'queued') {
+        active++;
+      }
+    });
+
+    if (total === 0) {
+      downloadsManager.classList.add('hidden');
+    } else {
+      downloadsManager.classList.remove('hidden');
+      if (active > 0) {
+        tasksCountBadge.textContent = `${active} Active`;
+        tasksCountBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+      } else {
+        tasksCountBadge.textContent = `${total} Finished`;
+        tasksCountBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+      }
+    }
   }
 
   function formatBytes(bytes) {

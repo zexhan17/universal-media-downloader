@@ -89,6 +89,12 @@ async def start_download(payload: DownloadRequest, request: Request):
     return {"task_id": task.task_id, "status": task.status}
 
 
+@router.get("/tasks")
+async def get_all_tasks():
+    """Get all current and recent download tasks."""
+    return downloader_service.get_all_tasks()
+
+
 @router.get("/task/{task_id}")
 async def get_task_status(task_id: str):
     """Get the current state of a task."""
@@ -96,6 +102,25 @@ async def get_task_status(task_id: str):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task.to_dict()
+
+
+@router.post("/task/{task_id}/cancel")
+async def cancel_task(task_id: str):
+    """Cancel a running task immediately and remove all associated files."""
+    loop = asyncio.get_running_loop()
+    success = downloader_service.cancel_task(task_id, loop)
+    if not success:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"status": "canceled", "message": "Task canceled and all associated files deleted successfully"}
+
+
+@router.delete("/task/{task_id}")
+async def delete_task(task_id: str):
+    """Dismiss/delete a task and clean up temporary or partial files."""
+    success = downloader_service.delete_task(task_id, delete_files=True)
+    if not success:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"status": "deleted", "message": "Task deleted"}
 
 
 @router.get("/progress/{task_id}")
@@ -169,19 +194,10 @@ async def download_file(task_id: str):
     # RFC 6266 / RFC 5987 compliant Content-Disposition with ASCII fallback + UTF-8 support
     content_disposition = f'attachment; filename="{safe_ascii_filename}"; filename*=UTF-8\'\'{encoded_utf8_filename}'
 
-    def cleanup_file():
-        try:
-            # Delete temporary file from server after streaming to browser
-            if task.save_mode == "browser" and task.filepath and os.path.exists(task.filepath):
-                os.remove(task.filepath)
-        except Exception:
-            pass
-
     return FileResponse(
         path=task.filepath,
         media_type=media_type,
-        headers={"Content-Disposition": content_disposition},
-        background=BackgroundTask(cleanup_file)
+        headers={"Content-Disposition": content_disposition}
     )
 
 
