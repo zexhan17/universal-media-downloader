@@ -10,18 +10,31 @@
   --primary-hover: #4f46e5;
 }
 
-html, body {
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
   background-color: var(--bg-main) !important;
   color: #f1f5f9;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Safe area support for mobile devices with notches/home indicators */
+body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Background gradient ambiance - deep, dark, professional */
 .bg-theme-ambient {
-  background: 
+  background:
     radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.15), transparent 70%),
     radial-gradient(ellipse 60% 40% at 100% 50%, rgba(139, 92, 246, 0.08), transparent),
     radial-gradient(ellipse 50% 50% at 0% 80%, rgba(14, 165, 233, 0.06), transparent),
@@ -36,6 +49,7 @@ html, body {
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.09);
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+  scroll-margin-top: 5rem;
 }
 
 .pro-card-nested {
@@ -57,6 +71,16 @@ html, body {
   outline: none;
 }
 
+/* Prevent auto-zoom on iOS Safari by ensuring minimum 16px font size on small screens */
+@media screen and (max-width: 640px) {
+
+  .pro-input,
+  select,
+  input {
+    font-size: 16px !important;
+  }
+}
+
 /* Primary Action Buttons */
 .btn-primary-action {
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
@@ -64,6 +88,7 @@ html, body {
   font-weight: 600;
   transition: all 0.25s ease;
   box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.35);
+  touch-action: manipulation;
 }
 
 .btn-primary-action:hover {
@@ -74,6 +99,7 @@ html, body {
 
 .btn-primary-action:active {
   transform: translateY(0);
+  opacity: 0.92;
 }
 
 /* Secondary Button */
@@ -82,6 +108,7 @@ html, body {
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #e2e8f0;
   transition: all 0.2s ease;
+  touch-action: manipulation;
 }
 
 .btn-secondary:hover {
@@ -90,25 +117,32 @@ html, body {
   color: #ffffff;
 }
 
+.btn-secondary:active {
+  opacity: 0.9;
+}
+
 /* Animated Striped Progress Bar */
 .progress-animated-striped {
-  background-image: linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.15) 25%,
-    transparent 25%,
-    transparent 50%,
-    rgba(255, 255, 255, 0.15) 50%,
-    rgba(255, 255, 255, 0.15) 75%,
-    transparent 75%,
-    transparent
-  );
+  background-image: linear-gradient(45deg,
+      rgba(255, 255, 255, 0.15) 25%,
+      transparent 25%,
+      transparent 50%,
+      rgba(255, 255, 255, 0.15) 50%,
+      rgba(255, 255, 255, 0.15) 75%,
+      transparent 75%,
+      transparent);
   background-size: 1.25rem 1.25rem;
   animation: progress-stripes 1.2s linear infinite;
 }
 
 @keyframes progress-stripes {
-  0% { background-position: 1.25rem 0; }
-  100% { background-position: 0 0; }
+  0% {
+    background-position: 1.25rem 0;
+  }
+
+  100% {
+    background-position: 0 0;
+  }
 }
 
 /* Platform Badge Pills */
@@ -130,18 +164,43 @@ html, body {
   color: #f1f5f9;
 }
 
+/* Dynamic New Task Card Glow Animation */
+.new-task-highlight {
+  animation: task-pulse 2.2s ease-out;
+}
+
+@keyframes task-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7), 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+    border-color: rgba(99, 102, 241, 0.9);
+  }
+
+  50% {
+    box-shadow: 0 0 25px 4px rgba(99, 102, 241, 0.4), 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+    border-color: rgba(99, 102, 241, 0.8);
+  }
+
+  100% {
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: #0a0e17;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #273549;
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #3b4d66;
 }

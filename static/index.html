@@ -38,28 +38,30 @@
 
   <!-- Top Navigation Bar -->
   <header class="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
+    <div class="max-w-6xl mx-auto px-3.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
         <div
-          class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-          <i data-lucide="download-cloud" class="w-5 h-5 text-white"></i>
+          class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
+          <i data-lucide="download-cloud" class="w-4 h-4 sm:w-5 sm:h-5 text-white"></i>
         </div>
-        <div>
-          <h1 class="font-bold text-lg tracking-tight text-white flex items-center gap-2">
-            Universal Media Downloader
+        <div class="min-w-0">
+          <h1
+            class="font-bold text-sm sm:text-lg tracking-tight text-white flex items-center gap-1.5 sm:gap-2 truncate">
+            <span class="truncate">Universal Media Downloader</span>
             <span
-              class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+              class="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shrink-0">
               Pro
             </span>
           </h1>
-          <p class="text-xs text-slate-400 hidden sm:block">YouTube • Instagram • Facebook • TikTok • X • Any Web Video
+          <p class="text-xs text-slate-400 hidden sm:block truncate">YouTube • Instagram • Facebook • TikTok • X • Any
+            Web Video
           </p>
         </div>
       </div>
-      <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-2 sm:space-x-3 shrink-0">
         <span
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
+          <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 animate-pulse"></span>
           Engine Active
         </span>
       </div>
@@ -67,20 +69,20 @@
   </header>
 
   <!-- Main Container -->
-  <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 space-y-7">
+  <main class="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-7">
 
     <!-- Hero / URL Input Box -->
-    <section class="pro-card rounded-2xl p-6 sm:p-8 relative overflow-hidden">
-      <div class="text-center max-w-2xl mx-auto mb-6">
-        <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-2">
+    <section class="pro-card rounded-2xl p-4 sm:p-6 md:p-8 relative overflow-hidden">
+      <div class="text-center max-w-2xl mx-auto mb-4 sm:mb-6">
+        <h2 class="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-1.5 sm:mb-2">
           Paste Any Video Link to Download
         </h2>
-        <p class="text-slate-400 text-sm mb-4">
+        <p class="text-slate-400 text-xs sm:text-sm mb-3 sm:mb-4">
           High-resolution 4K/1080p video, multi-language subtitles, and 320kbps MP3 audio extraction.
         </p>
 
         <!-- Supported Platform Pills -->
-        <div class="flex flex-wrap items-center justify-center gap-2 pt-1">
+        <div class="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 pt-1">
           <span class="platform-pill"><i data-lucide="youtube" class="w-3.5 h-3.5 text-red-500"></i> YouTube</span>
           <span class="platform-pill"><i data-lucide="instagram" class="w-3.5 h-3.5 text-pink-500"></i> Instagram
             Reels</span>
@@ -89,35 +91,34 @@
           <span class="platform-pill"><i data-lucide="music" class="w-3.5 h-3.5 text-cyan-400"></i> TikTok</span>
           <span class="platform-pill"><i data-lucide="twitter" class="w-3.5 h-3.5 text-slate-300"></i> Twitter /
             X</span>
-          <span class="platform-pill"><i data-lucide="globe" class="w-3.5 h-3.5 text-emerald-400"></i> Any Web Page
+          <span class="platform-pill"><i data-lucide="globe" class="w-3.5 h-3.5 text-emerald-400"></i> Any Web
             Video</span>
         </div>
       </div>
 
       <!-- Input Form -->
-      <form id="url-form" class="space-y-4 max-w-3xl mx-auto">
-        <div class="relative flex flex-col sm:flex-row gap-2.5">
+      <form id="url-form" class="space-y-3 sm:space-y-4 max-w-3xl mx-auto">
+        <div class="relative flex flex-col sm:flex-row gap-2.5 sm:gap-3">
           <div class="relative flex-1">
-            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">
-              <i data-lucide="link-2" class="w-5 h-5"></i>
+            <div class="absolute inset-y-0 left-0 pl-3.5 sm:pl-4 flex items-center pointer-events-none text-slate-500">
+              <i data-lucide="link-2" class="w-4 h-4 sm:w-5 sm:h-5"></i>
             </div>
-            <input type="url" id="video-url"
-              placeholder="Paste YouTube, Instagram, Facebook, TikTok, or web video link..." required
-              class="pro-input w-full pl-11 pr-24 py-3.5 rounded-xl text-white placeholder-slate-500 text-sm sm:text-base focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+            <input type="url" id="video-url" placeholder="Paste video or audio link..." required
+              class="pro-input w-full pl-10 sm:pl-11 pr-20 sm:pr-24 py-3 sm:py-3.5 rounded-xl text-white placeholder-slate-500 text-sm sm:text-base focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
             <button type="button" id="btn-paste"
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition flex items-center gap-1.5">
+              class="absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-xs font-medium text-slate-300 transition flex items-center gap-1.5">
               <i data-lucide="clipboard" class="w-3.5 h-3.5"></i>
               <span>Paste</span>
             </button>
           </div>
 
           <button type="submit" id="btn-fetch"
-            class="btn-primary-action px-6 py-3.5 rounded-xl font-semibold text-white text-sm sm:text-base flex items-center justify-center gap-2 shrink-0 transition">
+            class="btn-primary-action px-5 sm:px-6 py-3 sm:py-3.5 rounded-xl font-semibold text-white text-sm sm:text-base flex items-center justify-center gap-2 shrink-0 transition active:scale-[0.98] w-full sm:w-auto">
             <span id="btn-fetch-spinner" class="hidden">
               <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
             </span>
             <span id="btn-fetch-icon">
-              <i data-lucide="sparkles" class="w-5 h-5"></i>
+              <i data-lucide="sparkles" class="w-4 h-4 sm:w-5 sm:h-5"></i>
             </span>
             <span id="btn-fetch-text">Fetch Video</span>
           </button>
@@ -126,21 +127,22 @@
     </section>
 
     <!-- Video Analysis Card (Hidden until video is loaded) -->
-    <section id="video-card" class="hidden pro-card rounded-2xl p-6 sm:p-8 space-y-6 transition-all duration-300">
+    <section id="video-card"
+      class="hidden pro-card rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 transition-all duration-300 scroll-mt-20">
 
       <!-- Video Metadata Header -->
-      <div class="flex flex-col md:flex-row gap-6 items-start">
+      <div class="flex flex-col md:flex-row gap-4 sm:gap-6 items-start">
         <div
           class="relative group shrink-0 w-full md:w-72 aspect-video rounded-xl overflow-hidden bg-slate-900 border border-slate-800">
           <img id="video-thumb" src="" alt="Thumbnail" class="w-full h-full object-cover">
           <span id="video-duration"
-            class="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-slate-950/80 text-xs font-mono font-medium text-white border border-white/10">
+            class="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-slate-950/80 text-[11px] sm:text-xs font-mono font-medium text-white border border-white/10">
             00:00
           </span>
         </div>
 
-        <div class="flex-1 space-y-3 min-w-0">
-          <div class="flex flex-wrap items-center gap-2">
+        <div class="flex-1 space-y-2.5 sm:space-y-3 min-w-0 w-full">
+          <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <span id="platform-badge"
               class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5">
               <i data-lucide="video" class="w-3.5 h-3.5"></i>
@@ -152,14 +154,15 @@
             </span>
           </div>
 
-          <h3 id="video-title" class="text-lg sm:text-xl font-bold text-white line-clamp-2 leading-snug">
+          <h3 id="video-title"
+            class="text-base sm:text-lg md:text-xl font-bold text-white line-clamp-2 leading-snug break-words">
             Video Title
           </h3>
 
-          <div class="flex flex-wrap items-center gap-4 text-xs text-slate-400">
+          <div class="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-slate-400">
             <span class="flex items-center gap-1.5 text-slate-300 font-medium">
               <i data-lucide="user" class="w-3.5 h-3.5 text-indigo-400"></i>
-              <span id="video-channel">Channel Name</span>
+              <span id="video-channel" class="truncate max-w-[200px] sm:max-w-none">Channel Name</span>
             </span>
             <span id="video-views-container" class="flex items-center gap-1.5">
               <i data-lucide="eye" class="w-3.5 h-3.5"></i>
@@ -168,15 +171,15 @@
           </div>
 
           <!-- Quick 1-Click Download Bar -->
-          <div class="pt-2 flex flex-wrap items-center gap-3">
+          <div class="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
             <button id="btn-quick-download"
-              class="btn-primary-action px-5 py-2.5 rounded-xl font-semibold text-white text-sm flex items-center gap-2">
+              class="btn-primary-action px-5 py-3 sm:py-2.5 rounded-xl font-semibold text-white text-sm flex items-center justify-center gap-2 transition active:scale-[0.98]">
               <i data-lucide="download" class="w-4 h-4"></i>
               <span>Quick Download (Highest Quality)</span>
             </button>
 
             <button id="btn-toggle-options"
-              class="btn-secondary px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition">
+              class="btn-secondary px-4 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition">
               <i data-lucide="sliders" class="w-4 h-4 text-slate-400"></i>
               <span>Customize Options</span>
               <i data-lucide="chevron-down" id="options-chevron" class="w-4 h-4 transition-transform duration-200"></i>
@@ -186,32 +189,32 @@
       </div>
 
       <!-- Advanced Options Accordion -->
-      <div id="options-panel" class="border-t border-slate-800/80 pt-6 space-y-6">
+      <div id="options-panel" class="border-t border-slate-800/80 pt-4 sm:pt-6 space-y-4 sm:space-y-6">
 
         <!-- 1. Resolution & Quality Selection -->
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
+        <div class="space-y-2.5 sm:space-y-3">
+          <div class="flex flex-col xs:flex-row xs:items-center justify-between gap-1">
             <label class="text-sm font-semibold text-slate-200 flex items-center gap-2">
               <i data-lucide="monitor" class="w-4 h-4 text-indigo-400"></i>
               Select Resolution / Quality
             </label>
-            <span class="text-xs text-slate-400">Audio merged automatically via FFmpeg</span>
+            <span class="text-[11px] sm:text-xs text-slate-400">Audio merged automatically via FFmpeg</span>
           </div>
 
-          <div id="resolutions-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+          <div id="resolutions-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-2.5">
             <!-- Populated dynamically via JS -->
           </div>
         </div>
 
         <!-- 2. Container Format Selection -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div class="space-y-1.5 sm:space-y-2">
             <label class="text-sm font-semibold text-slate-200 flex items-center gap-2">
               <i data-lucide="file-video" class="w-4 h-4 text-purple-400"></i>
               Output Format
             </label>
             <select id="select-container"
-              class="pro-input w-full px-3.5 py-2.5 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              class="pro-input w-full px-3.5 py-2.5 sm:py-3 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <option value="mp4">MP4 (Standard Video - Most Compatible)</option>
               <option value="mkv">MKV (Matroska - Multi-tracks & Subtitles)</option>
               <option value="mp3">MP3 (Audio Only - High Quality 320k)</option>
@@ -221,13 +224,13 @@
           </div>
 
           <!-- Audio Bitrate (visible if audio only) -->
-          <div id="audio-quality-box" class="hidden space-y-2">
+          <div id="audio-quality-box" class="hidden space-y-1.5 sm:space-y-2">
             <label class="text-sm font-semibold text-slate-200 flex items-center gap-2">
               <i data-lucide="music" class="w-4 h-4 text-pink-400"></i>
               Audio Bitrate
             </label>
             <select id="select-audio-bitrate"
-              class="pro-input w-full px-3.5 py-2.5 rounded-xl text-sm text-white focus:outline-none">
+              class="pro-input w-full px-3.5 py-2.5 sm:py-3 rounded-xl text-sm text-white focus:outline-none">
               <option value="320">320 kbps (Highest Quality MP3)</option>
               <option value="256">256 kbps (Very High Quality)</option>
               <option value="192">192 kbps (Standard High Quality)</option>
@@ -237,19 +240,19 @@
         </div>
 
         <!-- 3. Subtitles Configuration -->
-        <div class="pro-card-nested p-4 rounded-xl space-y-4">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+        <div class="pro-card-nested p-3.5 sm:p-4 rounded-xl space-y-3 sm:space-y-4">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center space-x-2.5 sm:space-x-3">
+              <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 shrink-0">
                 <i data-lucide="subtitles" class="w-4 h-4"></i>
               </div>
               <div>
-                <h4 class="text-sm font-semibold text-white">Subtitles & Closed Captions</h4>
-                <p class="text-xs text-slate-400">Embed multi-language subtitles or download alongside video</p>
+                <h4 class="text-xs sm:text-sm font-semibold text-white">Subtitles & Closed Captions</h4>
+                <p class="text-[11px] sm:text-xs text-slate-400">Embed subtitles or download alongside video</p>
               </div>
             </div>
 
-            <label class="relative inline-flex items-center cursor-pointer">
+            <label class="relative inline-flex items-center cursor-pointer shrink-0">
               <input type="checkbox" id="toggle-subtitles" class="sr-only peer" checked>
               <div
                 class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600">
@@ -263,7 +266,7 @@
               <div>
                 <label class="block text-xs font-medium text-slate-300 mb-1">Subtitle Language</label>
                 <select id="select-sub-lang"
-                  class="pro-input w-full px-3 py-2 rounded-lg text-sm text-white focus:outline-none">
+                  class="pro-input w-full px-3 py-2 sm:py-2.5 rounded-lg text-sm text-white focus:outline-none">
                   <option value="en">English (Default)</option>
                 </select>
               </div>
@@ -271,58 +274,58 @@
               <div>
                 <label class="block text-xs font-medium text-slate-300 mb-1">Subtitle Handling Mode</label>
                 <select id="select-sub-mode"
-                  class="pro-input w-full px-3 py-2 rounded-lg text-sm text-white focus:outline-none">
-                  <option value="embed">Embed as Soft Subtitle (Switchable in player)</option>
-                  <option value="burn">Burn-In / Hard Subtitle (Rendered onto video)</option>
+                  class="pro-input w-full px-3 py-2 sm:py-2.5 rounded-lg text-sm text-white focus:outline-none">
+                  <option value="embed">Embed as Soft Subtitle (Switchable)</option>
+                  <option value="burn">Burn-In / Hard Subtitle (Rendered)</option>
                   <option value="separate">Save Separate .SRT file</option>
                 </select>
               </div>
             </div>
 
-            <div class="flex items-center space-x-2 pt-1">
+            <div class="flex items-start space-x-2 pt-1">
               <input type="checkbox" id="chk-auto-subs"
-                class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500" checked>
-              <label for="chk-auto-subs" class="text-xs text-slate-300">Allow auto-generated captions fallback if
-                creator subs aren't available</label>
+                class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500 mt-0.5" checked>
+              <label for="chk-auto-subs" class="text-xs text-slate-300 leading-tight">Allow auto-generated captions
+                fallback if creator subs aren't available</label>
             </div>
           </div>
         </div>
 
-        <!-- 4. Save Destination Mode (Browser vs Local Machine Directory) -->
-        <div class="pro-card-nested p-4 rounded-xl space-y-4">
-          <div class="flex items-center space-x-3">
-            <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+        <!-- 4. Save Destination Mode -->
+        <div class="pro-card-nested p-3.5 sm:p-4 rounded-xl space-y-3 sm:space-y-4">
+          <div class="flex items-center space-x-2.5 sm:space-x-3">
+            <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
               <i data-lucide="folder-down" class="w-4 h-4"></i>
             </div>
             <div>
-              <h4 class="text-sm font-semibold text-white">Save Destination Mode</h4>
-              <p class="text-xs text-slate-400">Choose how the downloaded file is saved</p>
+              <h4 class="text-xs sm:text-sm font-semibold text-white">Save Destination Mode</h4>
+              <p class="text-[11px] sm:text-xs text-slate-400">Choose how the downloaded file is saved</p>
             </div>
           </div>
 
           <!-- Mode Radio Cards -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
             <!-- Mode A: Direct Browser Download -->
             <label
-              class="relative flex items-start p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-900/60 cursor-pointer transition has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-500/10">
+              class="relative flex items-start p-3 sm:p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-900/60 cursor-pointer transition has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-500/10">
               <input type="radio" name="save_mode" value="browser" class="mt-1 text-indigo-600 focus:ring-indigo-500"
                 checked>
               <div class="ml-3">
-                <span class="block text-sm font-semibold text-white">Browser Download</span>
-                <span class="block text-xs text-slate-400 mt-0.5">Direct client download to your browser's default
-                  folder or prompts "Save As".</span>
+                <span class="block text-xs sm:text-sm font-semibold text-white">Browser Download</span>
+                <span class="block text-[11px] sm:text-xs text-slate-400 mt-0.5">Direct client download to your browser
+                  default downloads folder.</span>
               </div>
             </label>
 
             <!-- Mode B: Local Server Folder -->
             <label
-              class="relative flex items-start p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-900/60 cursor-pointer transition has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-500/10">
+              class="relative flex items-start p-3 sm:p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-900/60 cursor-pointer transition has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-500/10">
               <input type="radio" name="save_mode" value="local_folder"
                 class="mt-1 text-indigo-600 focus:ring-indigo-500">
               <div class="ml-3">
-                <span class="block text-sm font-semibold text-white">Save to Local Folder</span>
-                <span class="block text-xs text-slate-400 mt-0.5">Writes directly to a chosen folder on your computer's
-                  disk.</span>
+                <span class="block text-xs sm:text-sm font-semibold text-white">Save to Local Folder</span>
+                <span class="block text-[11px] sm:text-xs text-slate-400 mt-0.5">Writes directly to a chosen directory
+                  on your computer disk.</span>
               </div>
             </label>
           </div>
@@ -330,11 +333,11 @@
           <!-- Local Directory Picker input -->
           <div id="local-path-section" class="hidden space-y-2 pt-2 border-t border-slate-800/80">
             <label class="block text-xs font-medium text-slate-300">Local Destination Directory</label>
-            <div class="flex gap-2">
-              <input type="text" id="custom-dest-path" placeholder="e.g. /home/user/Downloads or ~/Videos"
-                class="pro-input flex-1 px-3.5 py-2 rounded-lg text-sm text-white font-mono" />
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input type="text" id="custom-dest-path" placeholder="e.g. /home/user/Downloads"
+                class="pro-input flex-1 px-3.5 py-2.5 rounded-lg text-xs sm:text-sm text-white font-mono" />
               <button type="button" id="btn-validate-path"
-                class="btn-secondary px-3.5 py-2 rounded-lg text-xs font-medium transition">
+                class="btn-secondary px-4 py-2.5 rounded-lg text-xs font-medium transition flex items-center justify-center gap-1.5 shrink-0">
                 Validate
               </button>
             </div>
@@ -350,7 +353,7 @@
         <!-- Start Download Action Button -->
         <div class="pt-2">
           <button id="btn-start-custom-download"
-            class="btn-primary-action w-full py-3.5 rounded-xl font-bold text-white text-base flex items-center justify-center gap-2">
+            class="btn-primary-action w-full py-3.5 sm:py-4 rounded-xl font-bold text-white text-sm sm:text-base flex items-center justify-center gap-2 active:scale-[0.98]">
             <i data-lucide="download-cloud" class="w-5 h-5"></i>
             <span>Start Download with Custom Settings</span>
           </button>
@@ -360,31 +363,34 @@
     </section>
 
     <!-- Active Downloads & Background Tasks Manager -->
-    <section id="downloads-manager" class="hidden space-y-4">
-      <div class="flex items-center justify-between px-1">
-        <div class="flex items-center gap-2.5">
-          <div class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></div>
-          <h3 class="text-base font-bold text-white tracking-tight">Active Downloads & Queue</h3>
+    <section id="downloads-manager" class="hidden space-y-3.5 sm:space-y-4 scroll-mt-20">
+      <div class="flex items-center justify-between px-1 gap-2">
+        <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <div class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse shrink-0"></div>
+          <h3 class="text-sm sm:text-base font-bold text-white tracking-tight truncate">Active Downloads & Queue</h3>
           <span id="tasks-count-badge"
-            class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">0
+            class="px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">0
             Tasks</span>
         </div>
         <button type="button" id="btn-clear-finished"
-          class="text-xs text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800">
+          class="text-xs text-slate-400 hover:text-slate-200 transition flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 shrink-0 active:scale-95">
           <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-          <span>Clear Finished</span>
+          <span class="hidden xs:inline">Clear Finished</span>
+          <span class="xs:hidden">Clear</span>
         </button>
       </div>
 
       <!-- Container where parallel task cards are appended dynamically -->
-      <div id="tasks-list" class="space-y-4">
+      <div id="tasks-list" class="space-y-3 sm:space-y-4">
       </div>
     </section>
 
   </main>
 
   <!-- Toast Notification Container -->
-  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+  <div id="toast-container"
+    class="fixed bottom-4 left-3 right-3 sm:left-auto sm:right-5 sm:bottom-5 z-50 flex flex-col gap-2 pointer-events-none sm:max-w-md">
+  </div>
 
   <!-- Scripts -->
   <script src="/js/app.js"></script>
