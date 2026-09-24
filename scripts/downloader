@@ -1,0 +1,476 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Universal Media Downloader CLI Controller
+# Provides:
+#   downloader-start   - Start the server in background (or foreground)
+#   downloader-stop    - Stop the server cleanly
+#   downloader-status  - View server status, health check, and recent logs
+#   downloader-restart - Restart the server
+#   downloader-logs    - Follow live server output (tail -f)
+# ==============================================================================
+
+# Enable colored output if interactive terminal
+if [ -t 1 ]; then
+  BOLD="\033[1m"
+  GREEN="\033[32m"
+  YELLOW="\033[33m"
+  RED="\033[31m"
+  CYAN="\033[36m"
+  GRAY="\033[90m"
+  RESET="\033[0m"
+else
+  BOLD=""
+  GREEN=""
+  YELLOW=""
+  RED=""
+  CYAN=""
+  GRAY=""
+  RESET=""
+fi
+
+# Resolve absolute path to this script (following any symlinks)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+RESOLVED_SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+
+# Detect project root directory
+if [ -f "$RESOLVED_SCRIPT_DIR/../run.py" ]; then
+  PROJECT_DIR="$(cd "$RESOLVED_SCRIPT_DIR/.." && pwd)"
+elif [ -f "$RESOLVED_SCRIPT_DIR/run.py" ]; then
+  PROJECT_DIR="$RESOLVED_SCRIPT_DIR"
+else
+  PROJECT_DIR="/home/user/code/sideProjects/download"
+fi
+
+VENV_PYTHON="$PROJECT_DIR/venv/bin/python3"
+RUN_SCRIPT="$PROJECT_DIR/run.py"
+PID_FILE="$PROJECT_DIR/.server.pid"
+LOG_FILE="$PROJECT_DIR/server.log"
+DEFAULT_PORT="8000"
+DEFAULT_HOST="0.0.0.0"
+
+# ------------------------------------------------------------------------------
+# Helper: Find Server PID
+# ------------------------------------------------------------------------------
+get_pid() {
+  local pid=""
+  if [ -f "$PID_FILE" ]; then
+    pid="$(cat "$PID_FILE" 2>/dev/null | tr -d '[:space:]')"
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      local cmd
+      cmd=$(ps -p "$pid" -o args= 2>/dev/null)
+      if echo "$cmd" | grep -E "run\.py|uvicorn|app\.main" >/dev/null 2>&1; then
+        echo "$pid"
+        return 0
+      fi
+    fi
+    # Stale PID file
+    rm -f "$PID_FILE" 2>/dev/null
+  fi
+
+  # Fallback: scan for running run.py in PROJECT_DIR
+  pid=$(pgrep -f "$PROJECT_DIR/run.py" 2>/dev/null | head -n 1)
+  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    echo "$pid" > "$PID_FILE"
+    echo "$pid"
+    return 0
+  fi
+
+  return 1
+}
+
+# ------------------------------------------------------------------------------
+# Action: START
+# ------------------------------------------------------------------------------
+start_server() {
+  local pid
+  pid=$(get_pid)
+  local PORT_VAL="${PORT:-$DEFAULT_PORT}"
+
+  local FOREGROUND=false
+  local RELOAD_FLAG=false
+  local CUSTOM_PORT=""
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -f|--foreground)
+        FOREGROUND=true
+        shift
+        ;;
+      -r|--reload)
+        RELOAD_FLAG=true
+        shift
+        ;;
+      -p|--port)
+        CUSTOM_PORT="$2"
+        shift 2
+        ;;
+      -h|--help)
+        show_help
+        return 0
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+
+  if [ -n "$CUSTOM_PORT" ]; then
+    PORT_VAL="$CUSTOM_PORT"
+  fi
+
+  if [ -n "$pid" ]; then
+    echo -e "${YELLOW}============================================================${RESET}"
+    echo -e "${YELLOW}⚠️  Universal Media Downloader is ALREADY running (PID: $pid)${RESET}"
+    echo -e "${YELLOW}============================================================${RESET}"
+    echo -e "🌐 Web App URL: ${CYAN}http://localhost:$PORT_VAL${RESET}"
+    echo -e "📁 Directory:   $PROJECT_DIR"
+    echo -e "📋 Log File:    $LOG_FILE"
+    echo
+    echo -e "${BOLD}Commands:${RESET}"
+    echo "  downloader-status   Check server status & metrics"
+    echo "  downloader-logs     View live server logs"
+    echo "  downloader-stop     Stop the server"
+    echo -e "${YELLOW}============================================================${RESET}"
+    return 0
+  fi
+
+  # Check virtualenv python
+  if [ ! -f "$VENV_PYTHON" ]; then
+    echo -e "${RED}❌ Error: Python virtualenv not found at: $VENV_PYTHON${RESET}"
+    echo "   Please create it or run dependency installation in $PROJECT_DIR."
+    return 1
+  fi
+
+  # Check if target port is occupied
+  if lsof -Pi :"$PORT_VAL" -sTCP:LISTEN -t >/dev/null 2>&1; then
+    local conf_pid
+    conf_pid=$(lsof -Pi :"$PORT_VAL" -sTCP:LISTEN -t 2>/dev/null | head -n 1)
+    echo -e "${RED}❌ Error: Port $PORT_VAL is already in use by process $conf_pid!${RESET}"
+    echo "   You can check the process with: ps -fp $conf_pid"
+    echo "   Or specify a different port: downloader-start --port 8080"
+    return 1
+  fi
+
+  export PORT="$PORT_VAL"
+  export HOST="${HOST:-$DEFAULT_HOST}"
+  if [ "$RELOAD_FLAG" = true ]; then
+    export RELOAD=true
+  fi
+
+  # Foreground Mode
+  if [ "$FOREGROUND" = true ]; then
+    echo -e "${CYAN}Starting Universal Media Downloader in foreground (Ctrl+C to stop)...${RESET}"
+    cd "$PROJECT_DIR" || exit 1
+    exec "$VENV_PYTHON" "$RUN_SCRIPT"
+  fi
+
+  # Detached Background Daemon Mode
+  echo -e "${GRAY}Starting Universal Media Downloader server in background...${RESET}"
+  cd "$PROJECT_DIR" || exit 1
+  
+  if command -v setsid >/dev/null 2>&1; then
+    setsid nohup "$VENV_PYTHON" "$RUN_SCRIPT" </dev/null >> "$LOG_FILE" 2>&1 &
+    pid=$!
+  else
+    nohup "$VENV_PYTHON" "$RUN_SCRIPT" </dev/null >> "$LOG_FILE" 2>&1 &
+    pid=$!
+  fi
+  echo "$pid" > "$PID_FILE"
+
+  # Verification loop (up to 5s)
+  local attempts=0
+  local started=false
+  while [ $attempts -lt 10 ]; do
+    sleep 0.5
+    attempts=$((attempts + 1))
+
+    # Check if process died
+    if ! kill -0 "$pid" 2>/dev/null; then
+      echo -e "${RED}❌ Server failed to start! Recent logs:${RESET}"
+      echo "------------------------------------------------------------"
+      tail -n 15 "$LOG_FILE" 2>/dev/null
+      echo "------------------------------------------------------------"
+      rm -f "$PID_FILE" 2>/dev/null
+      return 1
+    fi
+
+    # Check HTTP availability
+    local http_code
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" --noproxy "*" --connect-timeout 1 "http://127.0.0.1:$PORT_VAL/" 2>/dev/null)
+    if [ -n "$http_code" ] && [ "$http_code" != "000" ]; then
+      started=true
+      break
+    fi
+  done
+
+  echo -e "${GREEN}============================================================${RESET}"
+  echo -e "${BOLD}${GREEN}🚀 Universal Media Downloader started successfully!${RESET}"
+  echo -e "${GREEN}============================================================${RESET}"
+  echo -e "● Status:       ${GREEN}RUNNING${RESET} (PID: ${BOLD}$pid${RESET})"
+  echo -e "🌐 Web App URL:  ${CYAN}${BOLD}http://localhost:$PORT_VAL${RESET}"
+  echo -e "📁 Project Dir:  $PROJECT_DIR"
+  echo -e "📋 Server Logs:  $LOG_FILE"
+  if [ "$RELOAD_FLAG" = true ]; then
+    echo -e "🔄 Auto-Reload:  ${YELLOW}ENABLED${RESET}"
+  fi
+  echo -e "${GREEN}============================================================${RESET}"
+  echo -e "${BOLD}Quick commands:${RESET}"
+  echo "  downloader-status   Check health and resource usage"
+  echo "  downloader-logs     Stream live server logs"
+  echo "  downloader-stop     Stop the server"
+  echo -e "${GREEN}============================================================${RESET}"
+}
+
+# ------------------------------------------------------------------------------
+# Action: STOP
+# ------------------------------------------------------------------------------
+stop_server() {
+  local pid
+  pid=$(get_pid)
+
+  if [ -z "$pid" ]; then
+    # Double check for any stray process
+    local stray
+    stray=$(pgrep -f "$PROJECT_DIR/run.py" 2>/dev/null)
+    if [ -n "$stray" ]; then
+      echo -e "${YELLOW}Cleaning up running process(es): $stray...${RESET}"
+      kill -TERM $stray 2>/dev/null
+    fi
+    rm -f "$PID_FILE" 2>/dev/null
+    echo -e "${GRAY}Universal Media Downloader is not running.${RESET}"
+    return 0
+  fi
+
+  echo -e "${YELLOW}Stopping Universal Media Downloader (PID: $pid)...${RESET}"
+  kill -TERM "$pid" 2>/dev/null
+
+  # Wait up to 5 seconds for clean exit
+  local count=0
+  while kill -0 "$pid" 2>/dev/null && [ $count -lt 10 ]; do
+    sleep 0.5
+    count=$((count + 1))
+  done
+
+  # Force kill if still unresponsive
+  if kill -0 "$pid" 2>/dev/null; then
+    echo -e "${RED}Server did not exit cleanly; forcing shutdown (SIGKILL)...${RESET}"
+    kill -9 "$pid" 2>/dev/null
+    sleep 0.5
+  fi
+
+  # Clean any leftover children
+  local strays
+  strays=$(pgrep -f "$PROJECT_DIR/run.py" 2>/dev/null)
+  if [ -n "$strays" ]; then
+    kill -9 $strays 2>/dev/null
+  fi
+
+  rm -f "$PID_FILE" 2>/dev/null
+  echo -e "${GREEN}✓ Universal Media Downloader stopped successfully.${RESET}"
+}
+
+# ------------------------------------------------------------------------------
+# Action: STATUS
+# ------------------------------------------------------------------------------
+status_server() {
+  local pid
+  pid=$(get_pid)
+  local PORT_VAL="${PORT:-$DEFAULT_PORT}"
+
+  echo -e "${CYAN}============================================================${RESET}"
+  echo -e "${BOLD}Universal Media Downloader Status${RESET}"
+  echo -e "${CYAN}============================================================${RESET}"
+
+  if [ -n "$pid" ]; then
+    local stats
+    stats=$(ps -p "$pid" -o %cpu,%mem,etime 2>/dev/null | tail -n 1 | awk '{print "CPU: "$1"%, Mem: "$2"%, Uptime: "$3}')
+    echo -e "● Status:      ${GREEN}${BOLD}RUNNING${RESET}"
+    echo -e "🆔 PID:         ${BOLD}$pid${RESET}"
+    [ -n "$stats" ] && echo -e "📊 Resources:   $stats"
+    echo -e "🌐 Web App URL: ${CYAN}${BOLD}http://localhost:$PORT_VAL${RESET}"
+    echo -e "📁 Directory:   $PROJECT_DIR"
+    echo -e "📋 Logs:        $LOG_FILE"
+
+    # Health check probe
+    local http_code
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" --noproxy "*" --connect-timeout 2 "http://127.0.0.1:$PORT_VAL/" 2>/dev/null)
+    if [ "$http_code" = "200" ]; then
+      echo -e "🩺 Health:      ${GREEN}OK (HTTP 200 - Ready)${RESET}"
+    elif [ -n "$http_code" ] && [ "$http_code" != "000" ]; then
+      echo -e "🩺 Health:      ${YELLOW}Responding (HTTP $http_code)${RESET}"
+    else
+      echo -e "🩺 Health:      ${GRAY}Port listening, awaiting response${RESET}"
+    fi
+
+    echo -e "${GRAY}------------------------------------------------------------${RESET}"
+    echo -e "${BOLD}Recent Logs (last 6 lines):${RESET}"
+    if [ -f "$LOG_FILE" ]; then
+      tail -n 6 "$LOG_FILE" 2>/dev/null
+    else
+      echo "  (No log entries yet)"
+    fi
+    echo -e "${CYAN}============================================================${RESET}"
+    echo -e "To view live logs:   ${BOLD}downloader-logs${RESET}"
+    echo -e "To stop the server:  ${BOLD}downloader-stop${RESET}"
+  else
+    echo -e "○ Status:      ${GRAY}STOPPED${RESET}"
+    echo -e "📁 Directory:   $PROJECT_DIR"
+    echo -e "${CYAN}============================================================${RESET}"
+    echo -e "To start the server: ${BOLD}${GREEN}downloader-start${RESET}"
+  fi
+  echo -e "${CYAN}============================================================${RESET}"
+}
+
+# ------------------------------------------------------------------------------
+# Action: RESTART
+# ------------------------------------------------------------------------------
+restart_server() {
+  echo -e "${CYAN}Restarting Universal Media Downloader...${RESET}"
+  stop_server
+  sleep 1
+  start_server "$@"
+}
+
+# ------------------------------------------------------------------------------
+# Action: LOGS
+# ------------------------------------------------------------------------------
+logs_server() {
+  if [ ! -f "$LOG_FILE" ]; then
+    echo -e "${YELLOW}No log file found at: $LOG_FILE${RESET}"
+    echo -e "Run '${BOLD}downloader-start${RESET}' first to start the server."
+    return 1
+  fi
+  echo -e "${CYAN}Streaming logs from $LOG_FILE (Press Ctrl+C to exit)...${RESET}"
+  echo "============================================================"
+  tail -f -n 25 "$LOG_FILE" "$@"
+}
+
+# ------------------------------------------------------------------------------
+# Action: INSTALL
+# ------------------------------------------------------------------------------
+install_symlinks() {
+  local target_dirs=("$HOME/.local/bin" "$HOME/.bun/bin")
+  local installed_any=false
+
+  for dir in "${target_dirs[@]}"; do
+    if [ ! -d "$dir" ]; then
+      mkdir -p "$dir" 2>/dev/null || true
+    fi
+    if [ -d "$dir" ] && [ -w "$dir" ]; then
+      ln -sf "$PROJECT_DIR/scripts/downloader" "$dir/downloader"
+      ln -sf "$PROJECT_DIR/scripts/downloader" "$dir/downloader-start"
+      ln -sf "$PROJECT_DIR/scripts/downloader" "$dir/downloader-stop"
+      ln -sf "$PROJECT_DIR/scripts/downloader" "$dir/downloader-status"
+      ln -sf "$PROJECT_DIR/scripts/downloader" "$dir/downloader-restart"
+      ln -sf "$PROJECT_DIR/scripts/downloader" "$dir/downloader-logs"
+      echo -e "${GREEN}✓ Installed CLI commands to $dir${RESET}"
+      installed_any=true
+    fi
+  done
+
+  # Also link in project scripts/
+  ln -sf "$PROJECT_DIR/scripts/downloader" "$PROJECT_DIR/scripts/downloader-start"
+  ln -sf "$PROJECT_DIR/scripts/downloader" "$PROJECT_DIR/scripts/downloader-stop"
+  ln -sf "$PROJECT_DIR/scripts/downloader" "$PROJECT_DIR/scripts/downloader-status"
+  ln -sf "$PROJECT_DIR/scripts/downloader" "$PROJECT_DIR/scripts/downloader-restart"
+  ln -sf "$PROJECT_DIR/scripts/downloader" "$PROJECT_DIR/scripts/downloader-logs"
+
+  if [ "$installed_any" = true ]; then
+    echo -e "${GREEN}✓ Commands ready to use from anywhere:${RESET}"
+    echo "  - downloader-start"
+    echo "  - downloader-stop"
+    echo "  - downloader-status"
+    echo "  - downloader-restart"
+    echo "  - downloader-logs"
+    echo "  - downloader"
+  else
+    echo -e "${RED}❌ Could not write to ~/.local/bin or ~/.bun/bin. Please verify permissions.${RESET}"
+    return 1
+  fi
+}
+
+# ------------------------------------------------------------------------------
+# Action: HELP
+# ------------------------------------------------------------------------------
+show_help() {
+  echo -e "${BOLD}Universal Media Downloader CLI Controller${RESET}"
+  echo
+  echo -e "${BOLD}Usage:${RESET}"
+  echo "  downloader-start [options]    Start the dev server in the background"
+  echo "  downloader-stop               Stop the running dev server"
+  echo "  downloader-status             Show server status, health, and recent logs"
+  echo "  downloader-restart [options]  Restart the dev server"
+  echo "  downloader-logs               Stream live server logs in real time"
+  echo
+  echo -e "${BOLD}Options for start / restart:${RESET}"
+  echo "  -f, --foreground              Run server directly in the terminal"
+  echo "  -r, --reload                  Enable automatic reload on code changes"
+  echo "  -p, --port <port>             Specify custom listening port (default: 8000)"
+  echo "  -h, --help                    Display this help message"
+  echo
+  echo -e "${BOLD}Unified CLI syntax is also supported:${RESET}"
+  echo "  downloader [start|stop|status|restart|logs|install]"
+}
+
+# ------------------------------------------------------------------------------
+# Entrypoint Dispatcher
+# ------------------------------------------------------------------------------
+INVOKED_NAME="$(basename "$0")"
+
+case "$INVOKED_NAME" in
+  downloader-start)
+    start_server "$@"
+    ;;
+  downloader-stop)
+    stop_server "$@"
+    ;;
+  downloader-status)
+    status_server "$@"
+    ;;
+  downloader-restart)
+    restart_server "$@"
+    ;;
+  downloader-logs)
+    logs_server "$@"
+    ;;
+  *)
+    ACTION="${1:-help}"
+    if [ "$#" -gt 0 ]; then
+      shift
+    fi
+    case "$ACTION" in
+      start)
+        start_server "$@"
+        ;;
+      stop)
+        stop_server "$@"
+        ;;
+      status)
+        status_server "$@"
+        ;;
+      restart)
+        restart_server "$@"
+        ;;
+      logs)
+        logs_server "$@"
+        ;;
+      install)
+        install_symlinks
+        ;;
+      help|--help|-h)
+        show_help
+        ;;
+      *)
+        echo -e "${RED}Unknown command: $ACTION${RESET}"
+        echo
+        show_help
+        exit 1
+        ;;
+    esac
+    ;;
+esac

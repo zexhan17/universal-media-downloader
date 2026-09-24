@@ -2,9 +2,28 @@
 
 To run the application locally without Docker, follow these steps:
 
-### Quick Run (Using Existing Setup)
+### Global Terminal Commands (Run From Anywhere)
 
-The virtual environment and dependencies are already installed in your project folder. You can start the server with a single command:
+You can manage the server from any terminal directory using the dedicated CLI commands:
+
+```bash
+downloader-start     # Start the dev server in the background
+downloader-status    # Check server status, health, and recent logs
+downloader-stop      # Gracefully stop the server
+downloader-restart   # Restart the server
+downloader-logs      # Stream live server logs (tail -f)
+```
+
+Optional flags:
+- `downloader-start --reload` : Start with hot-reloading enabled
+- `downloader-start --foreground` : Run attached directly to the current terminal window
+- `downloader-start --port 8080` : Run on a custom port (default: 8000)
+
+---
+
+### Quick Run (Inside Project Folder)
+
+The virtual environment and dependencies are already installed in your project folder. You can also start the server directly:
 
 ```bash
 cd /home/user/code/sideProjects/download

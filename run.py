@@ -36,9 +36,11 @@ def main():
     print(f"📋 Live Server Logs File: {LOG_FILE} (auto-cleaned on start)")
     print("💡 Press Ctrl+C to stop the server.\n")
 
+    reload = os.getenv("RELOAD", "false").lower() in ("true", "1", "yes") or "--reload" in sys.argv
+
     # Start Uvicorn Server
     import uvicorn
-    uvicorn.run("app.main:app", host=host, port=port, reload=False)
+    uvicorn.run("app.main:app", host=host, port=port, reload=reload, reload_dirs=[str(BASE_DIR)] if reload else None)
 
 if __name__ == "__main__":
     main()
