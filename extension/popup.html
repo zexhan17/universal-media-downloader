@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Universal Media Downloader</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+      </div>
+      <div class="brand-info">
+        <h1 class="brand-title">Universal Downloader</h1>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div id="server-status" class="status-badge status-checking">
+        <span class="status-dot"></span>
+        <span id="server-status-text">Checking...</span>
+      </div>
+      <button id="btn-refresh" class="btn-icon" title="Refresh & Rescan">
+        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Server Offline Alert Banner -->
+  <div id="offline-alert" class="alert-banner hidden">
+    <div class="alert-content">
+      <strong>Server Offline</strong>
+      <p>Start your dev server by running in your terminal:</p>
+      <code>downloader-start</code>
+    </div>
+    <button id="btn-retry-server" class="btn-xs">Retry</button>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-tabs">
+    <button class="nav-tab active" data-tab="detected">
+      Detected Media <span id="badge-detected-count" class="tab-badge">0</span>
+    </button>
+    <button class="nav-tab" data-tab="paste">Quick Download</button>
+    <button class="nav-tab" data-tab="tasks">Active Tasks <span id="badge-tasks-count"
+        class="tab-badge hidden">0</span></button>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="main-content">
+
+    <!-- TAB 1: DETECTED MEDIA -->
+    <section id="tab-detected" class="tab-pane active">
+      <!-- Loading State -->
+      <div id="scan-loading" class="state-card hidden">
+        <div class="spinner"></div>
+        <p>Scanning current page for video streams...</p>
+      </div>
+
+      <!-- Detected Streams List -->
+      <div id="detected-streams-container" class="space-y">
+        <!-- Injected via popup.js -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="no-media-detected" class="state-card hidden">
+        <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="1.5" fill="none"
+          class="empty-icon">
+          <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+          <line x1="7" y1="2" x2="7" y2="22"></line>
+          <line x1="17" y1="2" x2="17" y2="22"></line>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <line x1="2" y1="7" x2="7" y2="7"></line>
+          <line x1="2" y1="17" x2="7" y2="17"></line>
+          <line x1="17" y1="17" x2="22" y2="17"></line>
+          <line x1="17" y1="7" x2="22" y2="7"></line>
+        </svg>
+        <h4>No streams detected yet</h4>
+        <p>Play the video on the page or click below to check if the current page URL can be downloaded.</p>
+        <div class="empty-actions">
+          <button id="btn-rescan-page" class="btn-secondary">
+            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            Rescan Page
+          </button>
+          <button id="btn-download-page-url" class="btn-primary">
+            Download Page URL
+          </button>
+        </div>
+      </div>
+
+      <!-- Video Details / Options Modal View -->
+      <div id="video-options-card" class="video-options-box hidden">
+        <div class="media-preview-header">
+          <img id="opt-thumb" src="" alt="Thumbnail" class="media-thumb" />
+          <div class="media-meta">
+            <h3 id="opt-title" class="media-title">Video Title</h3>
+            <span id="opt-duration" class="meta-tag">--:--</span>
+            <span id="opt-platform" class="meta-tag platform-tag">Universal</span>
+          </div>
+        </div>
+
+        <div class="options-form">
+          <div class="form-row">
+            <label>Quality:</label>
+            <select id="opt-quality" class="select-input">
+              <option value="best">Best Available (Auto)</option>
+              <option value="2160p">4K (2160p)</option>
+              <option value="1440p">2K (1440p)</option>
+              <option value="1080p">1080p Full HD</option>
+              <option value="720p">720p HD</option>
+              <option value="480p">480p SD</option>
+              <option value="audio_only">Audio Only (MP3)</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label>Format:</label>
+            <select id="opt-container" class="select-input">
+              <option value="mp4">MP4 (Default)</option>
+              <option value="mkv">MKV</option>
+              <option value="mp3">MP3 Audio</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label>Destination:</label>
+            <select id="opt-save-mode" class="select-input">
+              <option value="browser">Save in Browser Downloads</option>
+              <option value="local_folder">Save in Server Downloads Folder</option>
+            </select>
+          </div>
+
+          <div class="form-actions">
+            <button id="btn-cancel-options" class="btn-secondary">Cancel</button>
+            <button id="btn-confirm-download" class="btn-primary">Start Download</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: QUICK DOWNLOAD / PASTE -->
+    <section id="tab-paste" class="tab-pane">
+      <div class="paste-card">
+        <label for="input-custom-url" class="form-label">Paste Video URL, .m3u8 Link, or &lt;video&gt; HTML Tag:</label>
+        <textarea id="input-custom-url" rows="3" class="textarea-input"
+          placeholder="e.g. https://... or <video src=...><source src=...></video>"></textarea>
+
+        <div class="quick-options-row">
+          <div class="form-group-half">
+            <label>Quality:</label>
+            <select id="paste-quality" class="select-input">
+              <option value="best">Best Available</option>
+              <option value="1080p">1080p Full HD</option>
+              <option value="720p">720p HD</option>
+              <option value="audio_only">Audio Only (MP3)</option>
+            </select>
+          </div>
+          <div class="form-group-half">
+            <label>Save Destination:</label>
+            <select id="paste-save-mode" class="select-input">
+              <option value="browser">Browser Downloads</option>
+              <option value="local_folder">Server Downloads Folder</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="btn-paste-download" class="btn-primary btn-block">
+          <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2.5" fill="none">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Start Download
+        </button>
+      </div>
+    </section>
+
+    <!-- TAB 3: ACTIVE TASKS -->
+    <section id="tab-tasks" class="tab-pane">
+      <div id="tasks-list" class="space-y">
+        <!-- Injected via popup.js -->
+      </div>
+      <div id="no-tasks-state" class="state-card hidden">
+        <p>No downloads currently running.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast Notification Container -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <a href="http://localhost:8000" target="_blank" class="footer-link">
+      <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+        <polyline points="15 3 21 3 21 9"></polyline>
+        <line x1="10" y1="14" x2="21" y2="3"></line>
+      </svg>
+      Open Full Web Dashboard (localhost:8000)
+    </a>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>

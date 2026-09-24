@@ -158,3 +158,50 @@ def test_get_all_tasks_and_delete_task(tmp_path):
     # Verify task1 is gone
     get_del_resp = client.get(f"/api/task/{task1.task_id}")
     assert get_del_resp.status_code == 404
+
+
+def test_extract_media_url_and_referer():
+    """Test extracting real stream URLs and referer domain from pasted HTML snippets."""
+    from app.api.routes import extract_media_url_and_referer
+
+    # Test normal URL
+    url, ref = extract_media_url_and_referer("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    assert url == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    assert ref is None
+
+    # Test pasted HTML video snippet with blob and source m3u8
+    snippet = """<video id="video" src="blob:https://cloudorchestranova.com/39337b74-19ed-4e01-87ca-29896668c97d"><source src="https://liminallabyrinth.space/pl/master.m3u8?token=xyz" type="application/vnd.apple.mpegurl"></video>"""
+    url2, ref2 = extract_media_url_and_referer(snippet)
+    assert url2 == "https://liminallabyrinth.space/pl/master.m3u8?token=xyz"
+    assert ref2 == "https://cloudorchestranova.com/"
+
+
+def test_extract_media_url_and_referer_json():
+    """Test extracting URL and referer when structured JSON is passed or pasted."""
+    import json
+    from app.api.routes import extract_media_url_and_referer
+
+    structured = json.dumps({
+        "title": "Watch Swapped",
+        "url": "https://liminallabyrinth.space/pl/master.m3u8?token=xyz123",
+        "referer": "https://cloudorchestranova.com/",
+        "pageUrl": "https://cinehd.vc/watch",
+        "type": "HLS Stream (.m3u8)"
+    })
+    url, ref = extract_media_url_and_referer(structured)
+    assert url == "https://liminallabyrinth.space/pl/master.m3u8?token=xyz123"
+    assert ref == "https://cloudorchestranova.com/"
+
+    # Test download request payload using structured JSON in url field
+    req = client.post("/api/download", json={
+        "url": structured,
+        "quality": "best"
+    })
+    assert req.status_code == 200
+    task_id = req.json()["task_id"]
+    task = downloader_service.tasks.get(task_id)
+    assert task is not None
+    assert task.url == "https://liminallabyrinth.space/pl/master.m3u8?token=xyz123"
+    assert task.options.get("referer") == "https://cloudorchestranova.com/"
+    # Cleanup task
+    client.delete(f"/api/task/{task_id}")

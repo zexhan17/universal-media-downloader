@@ -184,7 +184,13 @@ class DownloaderService:
         self.history: List[dict] = []
         self.executor = ThreadPoolExecutor(max_workers=6)
 
-    def extract_info(self, url: str) -> dict:
+    def extract_info(
+        self,
+        url: str,
+        referer: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        headers: Optional[dict] = None
+    ) -> dict:
         """Extract metadata, available resolutions, and subtitles from any supported video URL."""
         ydl_opts: Dict[str, Any] = {
             "quiet": True,
@@ -192,7 +198,27 @@ class DownloaderService:
             "skip_download": True,
             "extract_flat": False,
             "ignoreerrors": False,
+            "nocheckcertificate": True,
+            "socket_timeout": 25,
         }
+        http_headers: Dict[str, str] = {
+            "User-Agent": user_agent or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        if referer:
+            http_headers["Referer"] = referer
+            try:
+                from urllib.parse import urlparse
+                parsed = urlparse(referer)
+                if parsed.scheme and parsed.netloc:
+                    http_headers["Origin"] = f"{parsed.scheme}://{parsed.netloc}"
+            except Exception:
+                pass
+        if headers:
+            http_headers.update(headers)
+
+        ydl_opts["http_headers"] = http_headers
         if NODE_BIN:
             ydl_opts["js_runtimes"] = {"node": {"path": NODE_BIN}}
 
@@ -503,6 +529,10 @@ class DownloaderService:
             "restrictfilenames": False,
             "ignoreerrors": "only_download",
         }
+
+        referer = opts.get("referer")
+        if referer:
+            ydl_opts.setdefault("http_headers", {})["Referer"] = referer
 
         if NODE_BIN:
             ydl_opts["js_runtimes"] = {"node": {"path": NODE_BIN}}

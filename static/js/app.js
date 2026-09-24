@@ -59,6 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // App State
   let currentVideoInfo = null;
   let selectedResolution = 'best';
+  let activeReferer = null;
+  let activeTitle = null;
+  let activeUserAgent = null;
+  let activeHeaders = null;
   const taskConnections = new Map(); // taskId -> { eventSource, status }
 
   // Initialize
@@ -102,13 +106,89 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Paste from Clipboard
+  // Parse input whether it's JSON, HTML <video> tag, or raw URL
+  function parseInputMedia(text) {
+    if (!text) return null;
+    const trimmed = text.trim();
+
+    // 1. Structured JSON (from browser extension or API)
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const data = JSON.parse(trimmed);
+        if (data && (data.url || data.streamUrl || data.src)) {
+          return {
+            url: data.url || data.streamUrl || data.src,
+            referer: data.referer || data.origin || data.pageUrl || null,
+            title: data.title || null,
+            userAgent: data.userAgent || null,
+            headers: data.headers || null
+          };
+        }
+      } catch (e) { }
+    }
+
+    // 2. HTML Video Tag
+    if (trimmed.includes('<video') || trimmed.includes('<source') || trimmed.includes('<iframe')) {
+      const matches = [...trimmed.matchAll(/src=["']([^"']+)["']/g)];
+      let pageOrigin = null;
+      let validUrl = null;
+      for (const m of matches) {
+        const val = m[1];
+        if (val.startsWith('blob:')) {
+          const matchOrigin = val.match(/blob:(https?:\/\/[^\/]+)/);
+          if (matchOrigin) pageOrigin = matchOrigin[1] + '/';
+        } else if (val.startsWith('http://') || val.startsWith('https://')) {
+          validUrl = val;
+        }
+      }
+      if (validUrl) {
+        return {
+          url: validUrl,
+          referer: pageOrigin,
+          title: null,
+          userAgent: null,
+          headers: null
+        };
+      }
+    }
+
+    // 3. Regular Video URL
+    return {
+      url: trimmed,
+      referer: null,
+      title: null,
+      userAgent: null,
+      headers: null
+    };
+  }
+
+  function handleIncomingMediaInput(rawText) {
+    const parsed = parseInputMedia(rawText);
+    if (!parsed || !parsed.url) return;
+
+    videoUrlInput.value = parsed.url;
+    activeReferer = parsed.referer;
+    activeTitle = parsed.title;
+    activeUserAgent = parsed.userAgent;
+    activeHeaders = parsed.headers;
+
+    if (parsed.referer) {
+      showToast(`Detected stream with security Referer attached!`, 'success');
+    }
+
+    fetchVideoInfo(parsed.url, parsed.referer, {
+      title: parsed.title,
+      user_agent: parsed.userAgent,
+      headers: parsed.headers
+    });
+  }
+
+  // Paste from Clipboard Button
   btnPaste.addEventListener('click', async () => {
     try {
       const text = await navigator.clipboard.readText();
       if (text) {
-        videoUrlInput.value = text.trim();
-        fetchVideoInfo(text.trim());
+        handleIncomingMediaInput(text);
       }
     } catch (err) {
       showToast('Clipboard access denied. Please paste manually.', 'error');
@@ -118,21 +198,43 @@ document.addEventListener('DOMContentLoaded', () => {
   // URL Form Submit
   urlForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const url = videoUrlInput.value.trim();
-    if (url) {
-      fetchVideoInfo(url);
+    const val = videoUrlInput.value.trim();
+    if (val) {
+      handleIncomingMediaInput(val);
     }
   });
 
-  // Auto fetch on paste
-  videoUrlInput.addEventListener('paste', (e) => {
+  // Auto fetch on paste directly into input
+  videoUrlInput.addEventListener('paste', () => {
     setTimeout(() => {
-      const url = videoUrlInput.value.trim();
-      if (url && url.startsWith('http')) {
-        fetchVideoInfo(url);
-      }
+      const val = videoUrlInput.value.trim();
+      handleIncomingMediaInput(val);
     }, 100);
   });
+
+  // Check for query parameters passed from the browser extension or external links
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('stream_data')) {
+    try {
+      const data = JSON.parse(decodeURIComponent(urlParams.get('stream_data')));
+      if (data && (data.url || data.streamUrl)) {
+        showToast('Loaded stream from Browser Extension!', 'success');
+        handleIncomingMediaInput(JSON.stringify(data));
+      }
+    } catch (e) {
+      console.error('Error parsing stream_data parameter:', e);
+    }
+  } else if (urlParams.has('url')) {
+    const streamUrl = urlParams.get('url');
+    const ref = urlParams.get('referer');
+    const ttl = urlParams.get('title');
+    showToast('Loaded stream from Browser Extension!', 'success');
+    handleIncomingMediaInput(JSON.stringify({
+      url: streamUrl,
+      referer: ref,
+      title: ttl
+    }));
+  }
 
   // Toggle Options Accordion
   btnToggleOptions.addEventListener('click', () => {
@@ -202,17 +304,28 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Fetch Video Info Function
-  async function fetchVideoInfo(url) {
+  async function fetchVideoInfo(url, referer = null, extraInfo = {}) {
     btnFetchSpinner.classList.remove('hidden');
     btnFetchIcon.classList.add('hidden');
     btnFetchText.textContent = 'Extracting...';
     btnFetch.disabled = true;
 
+    const reqReferer = referer || activeReferer || undefined;
+    const reqTitle = extraInfo.title || activeTitle || undefined;
+    const reqUserAgent = extraInfo.user_agent || activeUserAgent || undefined;
+    const reqHeaders = extraInfo.headers || activeHeaders || undefined;
+
     try {
       const response = await fetch('/api/info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({
+          url,
+          referer: reqReferer,
+          title: reqTitle,
+          user_agent: reqUserAgent,
+          headers: reqHeaders
+        }),
       });
 
       if (!response.ok) {
@@ -222,7 +335,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const data = await response.json();
       currentVideoInfo = data;
-      renderVideoInfo(data);
+      if (reqReferer) currentVideoInfo.referer = reqReferer;
+      if (reqTitle && (!currentVideoInfo.title || currentVideoInfo.title === 'Video Download' || currentVideoInfo.title === 'master')) {
+        currentVideoInfo.title = reqTitle;
+      }
+      renderVideoInfo(currentVideoInfo);
       showToast('Video information extracted successfully!', 'success');
     } catch (err) {
       showToast(err.message, 'error');
@@ -406,7 +523,11 @@ document.addEventListener('DOMContentLoaded', () => {
       subtitle_mode: 'embed',
       include_auto_subs: chkAutoSubs.checked,
       save_mode: saveMode,
-      custom_save_path: saveMode === 'local_folder' ? customDestPath.value.trim() : ''
+      custom_save_path: saveMode === 'local_folder' ? customDestPath.value.trim() : '',
+      referer: currentVideoInfo.referer || activeReferer || undefined,
+      user_agent: activeUserAgent || undefined,
+      headers: activeHeaders || undefined,
+      title: currentVideoInfo.title || activeTitle || undefined
     };
 
     triggerDownload(payload);
@@ -429,7 +550,11 @@ document.addEventListener('DOMContentLoaded', () => {
       subtitle_mode: selectSubMode.value,
       include_auto_subs: chkAutoSubs.checked,
       save_mode: saveMode,
-      custom_save_path: saveMode === 'local_folder' ? customDestPath.value.trim() : ''
+      custom_save_path: saveMode === 'local_folder' ? customDestPath.value.trim() : '',
+      referer: currentVideoInfo.referer || activeReferer || undefined,
+      user_agent: activeUserAgent || undefined,
+      headers: activeHeaders || undefined,
+      title: currentVideoInfo.title || activeTitle || undefined
     };
 
     triggerDownload(payload);

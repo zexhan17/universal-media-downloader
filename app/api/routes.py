@@ -19,6 +19,10 @@ router = APIRouter(prefix="/api")
 
 class VideoInfoRequest(BaseModel):
     url: str
+    referer: Optional[str] = None
+    user_agent: Optional[str] = None
+    headers: Optional[dict] = None
+    title: Optional[str] = None
 
 
 class DownloadRequest(BaseModel):
@@ -32,10 +36,49 @@ class DownloadRequest(BaseModel):
     include_auto_subs: bool = True
     save_mode: str = "browser"  # 'browser' or 'local_folder'
     custom_save_path: Optional[str] = ""
+    referer: Optional[str] = None
+    user_agent: Optional[str] = None
+    headers: Optional[dict] = None
+    title: Optional[str] = None
 
 
 class PathValidateRequest(BaseModel):
     path: str
+
+
+def extract_media_url_and_referer(raw_text: str) -> tuple[str, Optional[str]]:
+    """
+    Extract clean URL and optional referer from input if user pasted HTML tag like
+    <video src="..."><source src="..." ...></video>, markdown link, or structured JSON.
+    """
+    text = raw_text.strip()
+    # 1. Check if structured JSON was pasted
+    if text.startswith("{") and text.endswith("}"):
+        try:
+            data = json.loads(text)
+            if isinstance(data, dict):
+                url = data.get("url") or data.get("streamUrl") or data.get("src")
+                referer = data.get("referer") or data.get("origin") or data.get("pageUrl")
+                if url:
+                    return str(url).strip(), str(referer).strip() if referer else None
+        except Exception:
+            pass
+
+    # 2. Check if raw HTML video / source / iframe tag was pasted
+    if "<video" in text or "<source" in text or "<iframe" in text:
+        src_matches = re.findall(r'src=["\']([^"\']+)["\']', text)
+        page_origin = None
+        valid_url = None
+        for src in src_matches:
+            if src.startswith("blob:"):
+                m = re.match(r'blob:(https?://[^/]+)', src)
+                if m:
+                    page_origin = m.group(1) + "/"
+            elif src.startswith("http://") or src.startswith("https://"):
+                valid_url = src
+        if valid_url:
+            return valid_url, page_origin
+    return text, None
 
 
 def make_safe_download_filename(filename: str) -> str:
@@ -53,7 +96,8 @@ def make_safe_download_filename(filename: str) -> str:
 @router.post("/info")
 async def get_video_info(payload: VideoInfoRequest):
     """Fetch video metadata, resolutions, and subtitles from any platform."""
-    url = payload.url.strip()
+    url, auto_referer = extract_media_url_and_referer(payload.url)
+    referer = payload.referer or auto_referer
     if not url:
         raise HTTPException(status_code=400, detail="Please enter a valid video or webpage URL.")
 
@@ -61,9 +105,17 @@ async def get_video_info(payload: VideoInfoRequest):
         loop = asyncio.get_running_loop()
         info = await loop.run_in_executor(
             downloader_service.executor,
-            downloader_service.extract_info,
-            url
+            lambda: downloader_service.extract_info(
+                url,
+                referer=referer,
+                user_agent=payload.user_agent,
+                headers=payload.headers
+            )
         )
+        if payload.title and info.get("title") in ("Video Download", "Watch Swapped", "master", "index", "video", ""):
+            info["title"] = payload.title
+        if referer:
+            info["referer"] = referer
         return info
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to fetch video details: {str(e)}")
@@ -72,7 +124,7 @@ async def get_video_info(payload: VideoInfoRequest):
 @router.post("/download")
 async def start_download(payload: DownloadRequest, request: Request):
     """Initiate a download task in the background."""
-    url = payload.url.strip()
+    url, auto_referer = extract_media_url_and_referer(payload.url)
     if not url:
         raise HTTPException(status_code=400, detail="URL cannot be empty.")
 
@@ -82,7 +134,12 @@ async def start_download(payload: DownloadRequest, request: Request):
         if not check.get("valid"):
             raise HTTPException(status_code=400, detail=f"Invalid destination folder: {check.get('message')}")
 
-    task = downloader_service.create_task(url, payload.model_dump())
+    opts = payload.model_dump()
+    opts["url"] = url
+    if not opts.get("referer") and auto_referer:
+        opts["referer"] = auto_referer
+
+    task = downloader_service.create_task(url, opts)
     loop = asyncio.get_running_loop()
     downloader_service.start_download_async(task, loop)
 
