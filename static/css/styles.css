@@ -1,13 +1,52 @@
-/* YouTube & Universal Video Downloader - Professional Theme Styles */
+/* Universal Media Downloader - shadcn Natural (Stone) Theme */
 
 :root {
-  --bg-main: #0a0e17;
-  --bg-card: #111827;
-  --bg-card-secondary: #1a2234;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(99, 102, 241, 0.5);
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
+  --background: 24 9.8% 100%;
+  --foreground: 20 14.3% 4.1%;
+  --card: 24 9.8% 100%;
+  --card-foreground: 20 14.3% 4.1%;
+  --popover: 24 9.8% 100%;
+  --popover-foreground: 20 14.3% 4.1%;
+  --primary: 20 14.3% 4.1%;
+  --primary-foreground: 60 9.1% 97.8%;
+  --secondary: 60 4.8% 95.9%;
+  --secondary-foreground: 24 9.8% 10%;
+  --muted: 60 4.8% 95.9%;
+  --muted-foreground: 25 5.3% 44.7%;
+  --accent: 60 4.8% 95.9%;
+  --accent-foreground: 24 9.8% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 60 9.1% 97.8%;
+  --border: 20 5.9% 90%;
+  --input: 20 5.9% 90%;
+  --ring: 20 14.3% 4.1%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 20 14.3% 4.1%;
+  --foreground: 60 9.1% 97.8%;
+  --card: 24 9.8% 6.5%;
+  --card-foreground: 60 9.1% 97.8%;
+  --popover: 24 9.8% 6.5%;
+  --popover-foreground: 60 9.1% 97.8%;
+  --primary: 60 9.1% 97.8%;
+  --primary-foreground: 24 9.8% 10%;
+  --secondary: 12 6.5% 15.1%;
+  --secondary-foreground: 60 9.1% 97.8%;
+  --muted: 12 6.5% 15.1%;
+  --muted-foreground: 24 5.4% 63.9%;
+  --accent: 12 6.5% 15.1%;
+  --accent-foreground: 60 9.1% 97.8%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 60 9.1% 97.8%;
+  --border: 12 6.5% 16.5%;
+  --input: 12 6.5% 16.5%;
+  --ring: 24 5.4% 63.9%;
+}
+
+* {
+  border-color: hsl(var(--border));
 }
 
 html {
@@ -15,174 +54,47 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
-html,
 body {
-  background-color: var(--bg-main) !important;
-  color: #f1f5f9;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   margin: 0;
   padding: 0;
   min-height: 100vh;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-}
-
-/* Safe area support for mobile devices with notches/home indicators */
-body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Background gradient ambiance - deep, dark, professional */
-.bg-theme-ambient {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.15), transparent 70%),
-    radial-gradient(ellipse 60% 40% at 100% 50%, rgba(139, 92, 246, 0.08), transparent),
-    radial-gradient(ellipse 50% 50% at 0% 80%, rgba(14, 165, 233, 0.06), transparent),
-    #0a0e17;
-  background-attachment: fixed;
+/* Subtle background pattern - clean and minimal */
+.bg-natural-subtle {
+  background-color: hsl(var(--background));
+  background-image: radial-gradient(hsl(var(--muted-foreground) / 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
-/* Professional Card Panels */
-.pro-card {
-  background: rgba(17, 24, 39, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
-  scroll-margin-top: 5rem;
+/* New task highlight animation */
+.new-task-highlight {
+  animation: task-highlight 2s ease-out;
 }
 
-.pro-card-nested {
-  background: rgba(26, 34, 52, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+@keyframes task-highlight {
+  0% {
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.6);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
 }
 
-.pro-input {
-  background: rgba(10, 14, 23, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.pro-input:focus {
-  border-color: #6366f1;
-  background: rgba(13, 19, 33, 0.95);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-  outline: none;
-}
-
-/* Prevent auto-zoom on iOS Safari by ensuring minimum 16px font size on small screens */
+/* Prevent auto-zoom on iOS Safari on small screens */
 @media screen and (max-width: 640px) {
 
-  .pro-input,
   select,
   input {
     font-size: 16px !important;
-  }
-}
-
-/* Primary Action Buttons */
-.btn-primary-action {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  color: #ffffff;
-  font-weight: 600;
-  transition: all 0.25s ease;
-  box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.35);
-  touch-action: manipulation;
-}
-
-.btn-primary-action:hover {
-  background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
-  box-shadow: 0 6px 20px 0 rgba(124, 58, 237, 0.45);
-  transform: translateY(-1px);
-}
-
-.btn-primary-action:active {
-  transform: translateY(0);
-  opacity: 0.92;
-}
-
-/* Secondary Button */
-.btn-secondary {
-  background: rgba(30, 41, 59, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #e2e8f0;
-  transition: all 0.2s ease;
-  touch-action: manipulation;
-}
-
-.btn-secondary:hover {
-  background: rgba(51, 65, 85, 0.9);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-}
-
-.btn-secondary:active {
-  opacity: 0.9;
-}
-
-/* Animated Striped Progress Bar */
-.progress-animated-striped {
-  background-image: linear-gradient(45deg,
-      rgba(255, 255, 255, 0.15) 25%,
-      transparent 25%,
-      transparent 50%,
-      rgba(255, 255, 255, 0.15) 50%,
-      rgba(255, 255, 255, 0.15) 75%,
-      transparent 75%,
-      transparent);
-  background-size: 1.25rem 1.25rem;
-  animation: progress-stripes 1.2s linear infinite;
-}
-
-@keyframes progress-stripes {
-  0% {
-    background-position: 1.25rem 0;
-  }
-
-  100% {
-    background-position: 0 0;
-  }
-}
-
-/* Platform Badge Pills */
-.platform-pill {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #94a3b8;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.65rem;
-  border-radius: 9999px;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  transition: all 0.2s ease;
-}
-
-.platform-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #f1f5f9;
-}
-
-/* Dynamic New Task Card Glow Animation */
-.new-task-highlight {
-  animation: task-pulse 2.2s ease-out;
-}
-
-@keyframes task-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7), 0 10px 30px -10px rgba(0, 0, 0, 0.6);
-    border-color: rgba(99, 102, 241, 0.9);
-  }
-
-  50% {
-    box-shadow: 0 0 25px 4px rgba(99, 102, 241, 0.4), 0 10px 30px -10px rgba(0, 0, 0, 0.6);
-    border-color: rgba(99, 102, 241, 0.8);
-  }
-
-  100% {
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
-    border-color: rgba(99, 102, 241, 0.3);
   }
 }
 
@@ -193,14 +105,14 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0e17;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #273549;
-  border-radius: 4px;
+  background: hsl(var(--muted-foreground) / 0.25);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3b4d66;
+  background: hsl(var(--muted-foreground) / 0.45);
 }

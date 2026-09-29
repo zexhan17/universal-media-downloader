@@ -1,9 +1,35 @@
 /**
- * Universal Video Downloader - Frontend Application Logic
+ * Universal Video Downloader - Frontend Application Logic (shadcn Natural Theme)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Elements
+  // Theme Toggle Elements
+  const themeToggleBtn = document.getElementById('theme-toggle');
+  const themeToggleIcon = document.getElementById('theme-toggle-icon');
+
+  function updateThemeIcon() {
+    if (!themeToggleIcon) return;
+    const isDark = document.documentElement.classList.contains('dark');
+    themeToggleIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+    lucide.createIcons();
+  }
+
+  if (themeToggleBtn) {
+    updateThemeIcon();
+    themeToggleBtn.addEventListener('click', () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      if (isDark) {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      } else {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      }
+      updateThemeIcon();
+    });
+  }
+
+  // Form & URL Input Elements
   const urlForm = document.getElementById('url-form');
   const videoUrlInput = document.getElementById('video-url');
   const btnPaste = document.getElementById('btn-paste');
@@ -68,18 +94,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize
   loadSystemPaths();
 
-  // Helper: Toast Notifications
+  // Helper: Toast Notifications (shadcn Sonner / Toast style)
   function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
-    const bgClass = type === 'error' ? 'bg-red-950/90 border-red-500 text-red-100' :
-      type === 'success' ? 'bg-emerald-950/90 border-emerald-500 text-emerald-100' :
-        'bg-slate-900/90 border-indigo-500 text-white';
+    const borderClass = type === 'error' ? 'border-destructive/40 text-destructive' :
+      type === 'success' ? 'border-emerald-500/30 text-emerald-500 dark:text-emerald-400' :
+        'border-border text-foreground';
 
-    toast.className = `px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl border text-xs sm:text-sm shadow-2xl backdrop-blur-md transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto flex items-center gap-2.5 ${bgClass}`;
+    toast.className = `px-4 py-3 rounded-lg border bg-card text-card-foreground text-xs sm:text-sm shadow-lg backdrop-blur-md transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto flex items-center gap-3 ${borderClass}`;
 
     const iconName = type === 'error' ? 'alert-circle' : type === 'success' ? 'check-circle-2' : 'info';
-    toast.innerHTML = `<i data-lucide="${iconName}" class="w-4 h-4 shrink-0"></i><span>${message}</span>`;
+    toast.innerHTML = `<i data-lucide="${iconName}" class="w-4 h-4 shrink-0"></i><span class="flex-1 text-foreground">${message}</span>`;
 
     container.appendChild(toast);
     lucide.createIcons();
@@ -98,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function scrollToElement(el) {
     if (!el) return;
     const header = document.querySelector('header');
-    const headerHeight = header ? header.offsetHeight : 64;
+    const headerHeight = header ? header.offsetHeight : 56;
     const targetY = el.getBoundingClientRect().top + window.pageYOffset - headerHeight - 16;
     window.scrollTo({
       top: Math.max(0, targetY),
@@ -282,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
   btnValidatePath.addEventListener('click', async () => {
     const path = customDestPath.value.trim();
     if (!path) {
-      pathFeedback.innerHTML = '<span class="text-amber-400">Please enter a directory path.</span>';
+      pathFeedback.innerHTML = '<span class="text-amber-500">Please enter a directory path.</span>';
       return;
     }
     try {
@@ -293,13 +319,13 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const data = await res.json();
       if (data.valid) {
-        pathFeedback.innerHTML = `<span class="text-emerald-400 flex items-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> ${data.message} (${data.path})</span>`;
+        pathFeedback.innerHTML = `<span class="text-emerald-500 flex items-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> ${data.message} (${data.path})</span>`;
       } else {
-        pathFeedback.innerHTML = `<span class="text-red-400 flex items-center gap-1"><i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> ${data.message}</span>`;
+        pathFeedback.innerHTML = `<span class="text-destructive flex items-center gap-1"><i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> ${data.message}</span>`;
       }
       lucide.createIcons();
     } catch (err) {
-      pathFeedback.innerHTML = '<span class="text-red-400">Failed to validate path.</span>';
+      pathFeedback.innerHTML = '<span class="text-destructive">Failed to validate path.</span>';
     }
   });
 
@@ -362,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Platform Badge
     if (info.platform) {
       platformName.textContent = info.platform.name || 'Web Video';
-      platformBadge.innerHTML = `<i data-lucide="${info.platform.icon || 'video'}" class="w-3.5 h-3.5 ${info.platform.color || 'text-indigo-400'}"></i><span>${info.platform.name}</span>`;
+      platformBadge.innerHTML = `<i data-lucide="${info.platform.icon || 'video'}" class="w-3.5 h-3.5 text-foreground"></i><span>${info.platform.name}</span>`;
     }
 
     if (info.view_count) {
@@ -436,19 +462,19 @@ document.addEventListener('DOMContentLoaded', () => {
   function createResolutionCard(res, isSelected) {
     const div = document.createElement('div');
     div.dataset.resKey = res.res_key;
-    div.className = `p-3 sm:p-3.5 rounded-xl border cursor-pointer transition text-left flex flex-col justify-between min-h-[64px] ${isSelected
-      ? 'border-indigo-500 bg-indigo-500/20 text-white shadow-md shadow-indigo-500/10'
-      : 'border-slate-800 bg-slate-950/60 hover:bg-slate-900/80 text-slate-300'
+    div.className = `p-3 rounded-lg border text-left flex flex-col justify-between min-h-[64px] transition-colors cursor-pointer ${isSelected
+      ? 'border-primary bg-primary/[0.04] text-foreground ring-1 ring-primary shadow-xs'
+      : 'border-border bg-card hover:bg-accent hover:text-accent-foreground text-muted-foreground shadow-2xs'
       }`;
 
     div.innerHTML = `
-      <div class="flex items-center justify-between gap-1 mb-1 sm:mb-1.5">
-        <span class="font-bold text-xs sm:text-sm text-white truncate">${res.label}</span>
-        ${res.fps_str ? `<span class="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded bg-slate-800/90 text-indigo-300 font-mono shrink-0">${res.fps_str}</span>` : ''}
+      <div class="flex items-center justify-between gap-1 mb-1">
+        <span class="font-medium text-xs sm:text-sm text-foreground truncate">${res.label}</span>
+        ${res.fps_str ? `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded border border-border bg-muted text-muted-foreground shrink-0">${res.fps_str}</span>` : ''}
       </div>
-      <div class="text-[10px] sm:text-[11px] text-slate-400 flex items-center justify-between gap-1">
+      <div class="text-[11px] text-muted-foreground flex items-center justify-between gap-1">
         <span class="truncate">${res.size_str}</span>
-        <i data-lucide="check-circle-2" class="w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-indigo-400' : 'opacity-0'}"></i>
+        <i data-lucide="check-circle-2" class="w-3.5 h-3.5 shrink-0 text-primary ${isSelected ? '' : 'opacity-0'}"></i>
       </div>
     `;
 
@@ -473,10 +499,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const isMatch = card.dataset.resKey === resKey;
       const checkIcon = card.querySelector('i');
       if (isMatch) {
-        card.className = 'p-3 sm:p-3.5 rounded-xl border cursor-pointer transition text-left flex flex-col justify-between min-h-[64px] border-indigo-500 bg-indigo-500/20 text-white shadow-md shadow-indigo-500/10';
+        card.className = 'p-3 rounded-lg border-2 border-primary bg-primary/[0.04] text-foreground ring-1 ring-primary shadow-xs transition-colors cursor-pointer text-left flex flex-col justify-between min-h-[64px]';
         if (checkIcon) checkIcon.classList.remove('opacity-0');
       } else {
-        card.className = 'p-3 sm:p-3.5 rounded-xl border cursor-pointer transition text-left flex flex-col justify-between min-h-[64px] border-slate-800 bg-slate-950/60 hover:bg-slate-900/80 text-slate-300';
+        card.className = 'p-3 rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground text-muted-foreground shadow-2xs transition-colors cursor-pointer text-left flex flex-col justify-between min-h-[64px]';
         if (checkIcon) checkIcon.classList.add('opacity-0');
       }
     });
@@ -491,7 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
       paths.forEach((p, idx) => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 font-mono transition';
+        btn.className = 'inline-flex items-center rounded-md border border-border bg-secondary/50 px-2 py-1 text-[11px] font-mono text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shadow-2xs';
         btn.textContent = p.label;
         btn.title = p.path;
         btn.addEventListener('click', () => {
@@ -597,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
         card.classList.add('new-task-highlight');
         setTimeout(() => {
           card.classList.remove('new-task-highlight');
-        }, 2400);
+        }, 2000);
       }, 60);
 
       // Keep top form ready for parallel video downloads
@@ -612,7 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function createTaskCard(taskId, info, payload) {
     const card = document.createElement('div');
     card.id = `task-card-${taskId}`;
-    card.className = 'pro-card rounded-2xl p-4 sm:p-5 md:p-6 space-y-3.5 sm:space-y-4 border-indigo-500/30 transition-all duration-300 scroll-mt-20';
+    card.className = 'rounded-xl border border-border bg-card text-card-foreground shadow-sm p-4 sm:p-5 space-y-3.5 transition-all duration-200 scroll-mt-20';
     card.dataset.status = 'queued';
 
     const qualityLabel = payload.quality === 'best' ? 'Auto Max' : (payload.quality === 'audio_only' ? 'MP3 Audio' : payload.quality);
@@ -621,84 +647,84 @@ document.addEventListener('DOMContentLoaded', () => {
 
     card.innerHTML = `
       <!-- Header Row -->
-      <div class="flex items-start justify-between gap-2.5 sm:gap-3">
-        <div class="flex items-start space-x-2.5 sm:space-x-3 min-w-0 flex-1">
-          <div id="status-icon-${taskId}" class="p-2 sm:p-2.5 rounded-xl bg-indigo-500/20 text-indigo-400 shrink-0 mt-0.5">
-            <i data-lucide="loader-2" class="w-4 h-4 sm:w-5 sm:h-5 animate-spin"></i>
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-start space-x-3 min-w-0 flex-1">
+          <div id="status-icon-${taskId}" class="p-2 rounded-lg border border-border bg-muted/50 text-foreground shrink-0 mt-0.5">
+            <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
           </div>
           <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-1 sm:gap-1.5 mb-1">
-              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-800 text-indigo-300 font-mono tracking-wide border border-slate-700">
+            <div class="flex flex-wrap items-center gap-1.5 mb-1">
+              <span class="inline-flex items-center rounded-md border border-border bg-muted px-2 py-0.5 text-[10px] font-mono font-medium text-muted-foreground tracking-wide">
                 ${qualityLabel} • ${containerLabel}
               </span>
-              <span class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-900 text-slate-400 border border-slate-800">
+              <span class="inline-flex items-center rounded-md border border-border bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                 ${modeLabel}
               </span>
             </div>
-            <h4 id="title-${taskId}" class="text-xs sm:text-sm md:text-base font-bold text-white line-clamp-2 leading-snug break-words">
+            <h4 id="title-${taskId}" class="text-xs sm:text-sm font-semibold tracking-tight text-foreground line-clamp-2 leading-snug break-words">
               ${info?.title || 'Downloading media stream...'}
             </h4>
-            <p id="stage-${taskId}" class="text-[11px] sm:text-xs text-indigo-400 font-medium mt-0.5">
+            <p id="stage-${taskId}" class="text-[11px] sm:text-xs text-muted-foreground font-normal mt-0.5">
               Connecting to media source...
             </p>
           </div>
         </div>
 
         <!-- Right Action Controls -->
-        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <span id="percent-${taskId}" class="text-base sm:text-2xl font-black font-mono text-indigo-400">0%</span>
+        <div class="flex items-center gap-2 shrink-0">
+          <span id="percent-${taskId}" class="text-base sm:text-xl font-bold font-mono text-foreground">0%</span>
           <button type="button" id="btn-cancel-${taskId}" title="Stop download and remove temporary files"
-            class="px-2 sm:px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition active:scale-95">
-            <i data-lucide="square" class="w-3.5 h-3.5 fill-red-400"></i>
+            class="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-1 rounded-md border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs font-medium transition active:scale-95 shadow-2xs">
+            <i data-lucide="square" class="w-3.5 h-3.5 fill-destructive"></i>
             <span class="hidden sm:inline">Stop</span>
           </button>
           <button type="button" id="btn-dismiss-${taskId}" title="Dismiss card"
-            class="hidden px-2 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white text-xs transition active:scale-95">
+            class="hidden inline-flex items-center justify-center rounded-md border border-border bg-background hover:bg-accent text-muted-foreground hover:text-foreground h-7 w-7 text-xs transition active:scale-95 shadow-2xs">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
       </div>
 
-      <!-- Progress Bar -->
-      <div class="w-full bg-slate-900 rounded-full h-2.5 sm:h-3 p-0.5 overflow-hidden border border-slate-800">
+      <!-- Progress Bar (shadcn Progress) -->
+      <div class="h-2 w-full overflow-hidden rounded-full bg-secondary">
         <div id="bar-${taskId}"
-          class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 progress-animated-striped transition-all duration-200"
+          class="h-full rounded-full bg-primary transition-all duration-200"
           style="width: 0%"></div>
       </div>
 
       <!-- Stats Grid -->
-      <div id="stats-${taskId}" class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 text-xs font-mono">
-        <div class="bg-slate-950/70 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-          <span class="text-slate-400 block text-[9px] uppercase font-sans font-medium tracking-wide">Speed</span>
-          <span id="speed-${taskId}" class="text-slate-200 font-semibold text-[11px] sm:text-xs truncate block">-- MB/s</span>
+      <div id="stats-${taskId}" class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+        <div class="rounded-md border border-border/60 bg-muted/30 p-2 sm:p-2.5">
+          <span class="text-muted-foreground block text-[9px] uppercase font-medium tracking-wider">Speed</span>
+          <span id="speed-${taskId}" class="text-foreground font-mono font-medium text-[11px] sm:text-xs truncate block mt-0.5">-- MB/s</span>
         </div>
-        <div class="bg-slate-950/70 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-          <span class="text-slate-400 block text-[9px] uppercase font-sans font-medium tracking-wide">ETA</span>
-          <span id="eta-${taskId}" class="text-slate-200 font-semibold text-[11px] sm:text-xs truncate block">--:--</span>
+        <div class="rounded-md border border-border/60 bg-muted/30 p-2 sm:p-2.5">
+          <span class="text-muted-foreground block text-[9px] uppercase font-medium tracking-wider">ETA</span>
+          <span id="eta-${taskId}" class="text-foreground font-mono font-medium text-[11px] sm:text-xs truncate block mt-0.5">--:--</span>
         </div>
-        <div class="bg-slate-950/70 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-          <span class="text-slate-400 block text-[9px] uppercase font-sans font-medium tracking-wide">Downloaded</span>
-          <span id="downloaded-${taskId}" class="text-slate-200 font-semibold text-[11px] sm:text-xs truncate block">0 MB</span>
+        <div class="rounded-md border border-border/60 bg-muted/30 p-2 sm:p-2.5">
+          <span class="text-muted-foreground block text-[9px] uppercase font-medium tracking-wider">Downloaded</span>
+          <span id="downloaded-${taskId}" class="text-foreground font-mono font-medium text-[11px] sm:text-xs truncate block mt-0.5">0 MB</span>
         </div>
-        <div class="bg-slate-950/70 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-          <span class="text-slate-400 block text-[9px] uppercase font-sans font-medium tracking-wide">Total Size</span>
-          <span id="total-size-${taskId}" class="text-slate-200 font-semibold text-[11px] sm:text-xs truncate block">-- MB</span>
+        <div class="rounded-md border border-border/60 bg-muted/30 p-2 sm:p-2.5">
+          <span class="text-muted-foreground block text-[9px] uppercase font-medium tracking-wider">Total Size</span>
+          <span id="total-size-${taskId}" class="text-foreground font-mono font-medium text-[11px] sm:text-xs truncate block mt-0.5">-- MB</span>
         </div>
       </div>
 
       <!-- Completion Action Area (Revealed on Complete) -->
-      <div id="completion-box-${taskId}" class="hidden space-y-2.5 sm:space-y-3 pt-3 border-t border-slate-800/80">
-        <div class="p-3 sm:p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2.5">
-          <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+      <div id="completion-box-${taskId}" class="hidden space-y-3 pt-3 border-t border-border">
+        <div class="p-3 sm:p-3.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 text-xs flex items-start gap-2.5">
+          <i data-lucide="check-circle-2" class="w-4 h-4 shrink-0 mt-0.5"></i>
           <div class="flex-1 min-w-0">
-            <p id="completion-title-${taskId}" class="font-semibold text-white">Media Ready!</p>
-            <p id="completion-desc-${taskId}" class="text-slate-300 text-[11px] sm:text-xs mt-0.5">Your file has finished processing.</p>
+            <p id="completion-title-${taskId}" class="font-semibold text-foreground">Media Ready!</p>
+            <p id="completion-desc-${taskId}" class="text-muted-foreground text-[11px] sm:text-xs mt-0.5">Your file has finished processing.</p>
           </div>
         </div>
 
-        <div id="path-box-${taskId}" class="hidden bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 text-xs flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-2">
-          <code id="path-text-${taskId}" class="text-indigo-300 font-mono text-[11px] truncate flex-1 select-all break-all"></code>
-          <button type="button" id="btn-copy-path-${taskId}" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center justify-center gap-1 transition active:scale-95">
+        <div id="path-box-${taskId}" class="hidden rounded-md border border-border bg-background p-2.5 text-xs flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-2">
+          <code id="path-text-${taskId}" class="text-foreground font-mono text-[11px] truncate flex-1 select-all break-all"></code>
+          <button type="button" id="btn-copy-path-${taskId}" class="shrink-0 inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-md border border-border bg-muted/50 hover:bg-accent text-muted-foreground hover:text-foreground text-xs transition active:scale-95 shadow-2xs">
             <i data-lucide="copy" class="w-3 h-3"></i>
             <span id="copy-text-${taskId}">Copy Path</span>
           </button>
@@ -706,23 +732,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 pt-1">
           <a id="btn-download-${taskId}" href="/api/file/${taskId}" download
-            class="btn-primary-action w-full sm:flex-1 py-3 sm:py-2.5 px-4 rounded-xl font-bold text-white text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-md shadow-indigo-500/20 active:scale-[0.98]">
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 gap-2 w-full sm:flex-1 active:scale-[0.98]">
             <i data-lucide="download" class="w-4 h-4"></i>
             <span id="btn-download-text-${taskId}">Download File Now</span>
           </a>
-          <button type="button" id="btn-open-folder-${taskId}" class="hidden btn-secondary w-full sm:w-auto py-3 sm:py-2.5 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-[0.98]">
-            <i data-lucide="folder" class="w-3.5 h-3.5 text-slate-300"></i>
+          <button type="button" id="btn-open-folder-${taskId}" class="hidden inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-10 px-3.5 gap-1.5 w-full sm:w-auto active:scale-[0.98]">
+            <i data-lucide="folder" class="w-3.5 h-3.5 text-muted-foreground"></i>
             <span>Open Folder</span>
           </button>
         </div>
       </div>
 
       <!-- Error / Canceled Notice Area -->
-      <div id="notice-box-${taskId}" class="hidden p-3 rounded-xl text-xs flex items-start gap-2.5">
+      <div id="notice-box-${taskId}" class="hidden p-3 rounded-lg border border-border bg-muted/30 text-xs flex items-start gap-2.5">
         <i id="notice-icon-${taskId}" data-lucide="alert-circle" class="w-4 h-4 shrink-0 mt-0.5"></i>
         <div class="flex-1 min-w-0">
-          <p id="notice-title-${taskId}" class="font-semibold"></p>
-          <p id="notice-desc-${taskId}" class="text-slate-300 text-xs mt-0.5"></p>
+          <p id="notice-title-${taskId}" class="font-semibold text-foreground"></p>
+          <p id="notice-desc-${taskId}" class="text-muted-foreground text-xs mt-0.5"></p>
         </div>
       </div>
     `;
@@ -869,28 +895,31 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!card) return;
 
     card.dataset.status = 'completed';
-    card.classList.remove('border-indigo-500/30');
-    card.classList.add('border-emerald-500/40');
+    card.classList.remove('border-border');
+    card.classList.add('border-emerald-500/30');
 
     const statusIcon = card.querySelector(`#status-icon-${taskId}`);
     if (statusIcon) {
-      statusIcon.className = 'p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0 mt-0.5';
-      statusIcon.innerHTML = '<i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>';
+      statusIcon.className = 'p-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 shrink-0 mt-0.5';
+      statusIcon.innerHTML = '<i data-lucide="check-circle-2" class="w-4 h-4"></i>';
     }
 
     const stageEl = card.querySelector(`#stage-${taskId}`);
-    if (stageEl) stageEl.textContent = '✓ Download & Processing Complete!';
+    if (stageEl) {
+      stageEl.textContent = '✓ Download & Processing Complete!';
+      stageEl.className = 'text-[11px] sm:text-xs text-emerald-500 dark:text-emerald-400 font-medium mt-0.5';
+    }
 
     const percentEl = card.querySelector(`#percent-${taskId}`);
     if (percentEl) {
       percentEl.textContent = '100%';
-      percentEl.className = 'text-lg sm:text-2xl font-black font-mono text-emerald-400';
+      percentEl.className = 'text-base sm:text-xl font-bold font-mono text-emerald-500 dark:text-emerald-400';
     }
 
     const barEl = card.querySelector(`#bar-${taskId}`);
     if (barEl) {
       barEl.style.width = '100%';
-      barEl.className = 'h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300';
+      barEl.className = 'h-full rounded-full bg-emerald-500 transition-all duration-300';
     }
 
     const speedEl = card.querySelector(`#speed-${taskId}`);
@@ -971,30 +1000,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!card) return;
 
     card.dataset.status = 'canceled';
-    card.classList.remove('border-indigo-500/30', 'border-emerald-500/40');
-    card.classList.add('border-slate-800');
+    card.classList.remove('border-emerald-500/30');
+    card.classList.add('border-border', 'opacity-75');
 
     const statusIcon = card.querySelector(`#status-icon-${taskId}`);
     if (statusIcon) {
-      statusIcon.className = 'p-2.5 rounded-xl bg-slate-800 text-slate-400 shrink-0 mt-0.5';
-      statusIcon.innerHTML = '<i data-lucide="square" class="w-5 h-5 text-slate-400"></i>';
+      statusIcon.className = 'p-2 rounded-lg border border-border bg-muted/50 text-muted-foreground shrink-0 mt-0.5';
+      statusIcon.innerHTML = '<i data-lucide="square" class="w-4 h-4 text-muted-foreground"></i>';
     }
 
     const stageEl = card.querySelector(`#stage-${taskId}`);
     if (stageEl) {
       stageEl.textContent = 'Download canceled and temporary files deleted.';
-      stageEl.className = 'text-xs text-slate-400 font-medium mt-0.5';
+      stageEl.className = 'text-xs text-muted-foreground font-normal mt-0.5';
     }
 
     const percentEl = card.querySelector(`#percent-${taskId}`);
     if (percentEl) {
       percentEl.textContent = 'Canceled';
-      percentEl.className = 'text-sm sm:text-base font-bold text-slate-400';
+      percentEl.className = 'text-sm font-semibold text-muted-foreground font-mono';
     }
 
     const barEl = card.querySelector(`#bar-${taskId}`);
     if (barEl) {
-      barEl.className = 'h-full rounded-full bg-slate-700 transition-all duration-300';
+      barEl.className = 'h-full rounded-full bg-muted-foreground/30 transition-all duration-300';
     }
 
     // Toggle buttons: hide Stop, show Dismiss
@@ -1014,10 +1043,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const noticeIcon = card.querySelector(`#notice-icon-${taskId}`);
 
     if (noticeBox) {
-      noticeBox.className = 'p-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 text-xs flex items-start gap-2.5';
+      noticeBox.className = 'p-3 rounded-lg border border-border bg-muted/30 text-xs flex items-start gap-2.5';
       noticeBox.classList.remove('hidden');
     }
-    if (noticeIcon) noticeIcon.outerHTML = '<i data-lucide="check" class="w-4 h-4 text-slate-400 shrink-0 mt-0.5"></i>';
+    if (noticeIcon) noticeIcon.outerHTML = '<i data-lucide="check" class="w-4 h-4 text-muted-foreground shrink-0 mt-0.5"></i>';
     if (noticeTitle) noticeTitle.textContent = 'Download Stopped';
     if (noticeDesc) noticeDesc.textContent = 'The download was stopped and all partial / incomplete files were cleanly deleted.';
 
@@ -1030,30 +1059,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!card) return;
 
     card.dataset.status = 'failed';
-    card.classList.remove('border-indigo-500/30');
-    card.classList.add('border-red-500/40');
+    card.classList.remove('border-emerald-500/30');
+    card.classList.add('border-destructive/40');
 
     const statusIcon = card.querySelector(`#status-icon-${taskId}`);
     if (statusIcon) {
-      statusIcon.className = 'p-2.5 rounded-xl bg-red-500/20 text-red-400 shrink-0 mt-0.5';
-      statusIcon.innerHTML = '<i data-lucide="alert-circle" class="w-5 h-5 text-red-400"></i>';
+      statusIcon.className = 'p-2 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive shrink-0 mt-0.5';
+      statusIcon.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4 text-destructive"></i>';
     }
 
     const stageEl = card.querySelector(`#stage-${taskId}`);
     if (stageEl) {
       stageEl.textContent = 'Download failed.';
-      stageEl.className = 'text-xs text-red-400 font-medium mt-0.5';
+      stageEl.className = 'text-xs text-destructive font-medium mt-0.5';
     }
 
     const percentEl = card.querySelector(`#percent-${taskId}`);
     if (percentEl) {
       percentEl.textContent = 'Failed';
-      percentEl.className = 'text-sm sm:text-base font-bold text-red-400';
+      percentEl.className = 'text-sm font-semibold text-destructive font-mono';
     }
 
     const barEl = card.querySelector(`#bar-${taskId}`);
     if (barEl) {
-      barEl.className = 'h-full rounded-full bg-red-500/60 transition-all duration-300';
+      barEl.className = 'h-full rounded-full bg-destructive transition-all duration-300';
     }
 
     // Toggle buttons
@@ -1068,7 +1097,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const noticeDesc = card.querySelector(`#notice-desc-${taskId}`);
 
     if (noticeBox) {
-      noticeBox.className = 'p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs flex items-start gap-2.5';
+      noticeBox.className = 'p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-start gap-2.5';
       noticeBox.classList.remove('hidden');
     }
     if (noticeTitle) noticeTitle.textContent = 'Download Error';
@@ -1137,10 +1166,10 @@ document.addEventListener('DOMContentLoaded', () => {
       downloadsManager.classList.remove('hidden');
       if (active > 0) {
         tasksCountBadge.textContent = `${active} Active`;
-        tasksCountBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+        tasksCountBadge.className = 'inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground shrink-0';
       } else {
         tasksCountBadge.textContent = `${total} Finished`;
-        tasksCountBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+        tasksCountBadge.className = 'inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground shrink-0';
       }
     }
   }
