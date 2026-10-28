@@ -205,3 +205,42 @@ def test_extract_media_url_and_referer_json():
     assert task.options.get("referer") == "https://cloudorchestranova.com/"
     # Cleanup task
     client.delete(f"/api/task/{task_id}")
+
+
+def test_cookies_endpoints():
+    """Test cookie status, upload, and deletion endpoints."""
+    # 1. Check initial status
+    status_res = client.get("/api/cookies")
+    assert status_res.status_code == 200
+    assert "configured" in status_res.json()
+
+    # 2. Upload test cookies
+    cookie_content = "# Netscape HTTP Cookie File\n.facebook.com\tTRUE\t/\tTRUE\t1790787448\tc_user\t123456789\n"
+    post_res = client.post("/api/cookies", json={"content": cookie_content})
+    assert post_res.status_code == 200
+    assert post_res.json()["success"] is True
+
+    # 3. Status should now be configured
+    status_res2 = client.get("/api/cookies")
+    assert status_res2.status_code == 200
+    assert status_res2.json()["configured"] is True
+
+    # 4. Delete cookies
+    del_res = client.delete("/api/cookies")
+    assert del_res.status_code == 200
+    assert del_res.json()["success"] is True
+
+    # 5. Status should now be false
+    status_res3 = client.get("/api/cookies")
+    assert status_res3.status_code == 200
+    assert status_res3.json()["configured"] is False
+
+
+def test_facebook_error_detail_formatting():
+    """Verify that Facebook 'Cannot parse data' errors return actionable instructions."""
+    # Posting an invalid reel URL or unauthenticated reel returns clean guidance
+    resp = client.post("/api/info", json={"url": "https://www.facebook.com/reel/0000000000"})
+    assert resp.status_code == 400
+    detail = resp.json().get("detail", "")
+    assert "Facebook requires authentication" in detail or "Failed to fetch video details" in detail
+

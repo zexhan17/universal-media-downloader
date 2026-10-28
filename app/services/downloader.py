@@ -42,6 +42,23 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 DOWNLOADS_DIR = BASE_DIR / "downloads"
 DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
+
+def get_cookie_file() -> Optional[str]:
+    """Find active cookies.txt file in project or system."""
+    env_cookie = os.getenv("COOKIES_FILE")
+    if env_cookie and os.path.exists(env_cookie) and os.path.getsize(env_cookie) > 0:
+        return env_cookie
+    candidates = [
+        BASE_DIR / "cookies.txt",
+        DOWNLOADS_DIR / "cookies.txt",
+        Path.home() / ".config/yt-dlp/cookies.txt",
+        Path.home() / "cookies.txt",
+    ]
+    for cand in candidates:
+        if cand.exists() and cand.stat().st_size > 0:
+            return str(cand)
+    return None
+
 # Common languages priority order for subtitles
 POPULAR_LANG_PRIORITY = {
     "en": 1, "en-US": 2, "en-GB": 3, "es": 4, "fr": 5, "de": 6,
@@ -184,6 +201,44 @@ class DownloaderService:
         self.history: List[dict] = []
         self.executor = ThreadPoolExecutor(max_workers=6)
 
+    def get_cookie_status(self) -> dict:
+        """Get status of active cookies.txt."""
+        cookie_path = get_cookie_file()
+        if cookie_path and os.path.exists(cookie_path):
+            size = os.path.getsize(cookie_path)
+            return {
+                "configured": True,
+                "filename": os.path.basename(cookie_path),
+                "size": size,
+                "size_str": format_bytes(size),
+                "path": str(cookie_path),
+            }
+        return {
+            "configured": False,
+            "filename": None,
+            "size": 0,
+            "size_str": "0 B",
+            "path": None,
+        }
+
+    def save_cookies(self, content: str) -> Path:
+        """Save cookies content into root cookies.txt."""
+        target = BASE_DIR / "cookies.txt"
+        target.write_text(content.strip() + "\n", encoding="utf-8")
+        return target
+
+    def delete_cookies(self) -> bool:
+        """Remove active cookies.txt files."""
+        deleted = False
+        for path in [BASE_DIR / "cookies.txt", DOWNLOADS_DIR / "cookies.txt"]:
+            if path.exists():
+                try:
+                    path.unlink()
+                    deleted = True
+                except Exception:
+                    pass
+        return deleted
+
     def extract_info(
         self,
         url: str,
@@ -198,9 +253,14 @@ class DownloaderService:
             "skip_download": True,
             "extract_flat": False,
             "ignoreerrors": False,
+            "ignoreconfig": True,
             "nocheckcertificate": True,
             "socket_timeout": 25,
         }
+        cookie_file = get_cookie_file()
+        if cookie_file:
+            ydl_opts["cookiefile"] = cookie_file
+
         http_headers: Dict[str, str] = {
             "User-Agent": user_agent or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
             "Accept": "*/*",
@@ -222,9 +282,54 @@ class DownloaderService:
         if NODE_BIN:
             ydl_opts["js_runtimes"] = {"node": {"path": NODE_BIN}}
 
+        info = None
+        extract_err = None
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+            try:
+                info = ydl.extract_info(url, download=False)
+            except Exception as e:
+                extract_err = e
+
+        # Fallback handling for Facebook / Instagram / protected platforms
+        if not info:
+            is_fb = any(d in url.lower() for d in ["facebook.com", "fb.watch", "fb.me"])
+            is_ig = "instagram.com" in url.lower()
+            err_str = str(extract_err) if extract_err else ""
+
+            # Attempt 1: Try browser cookies if no cookies.txt was supplied
+            if not cookie_file and (is_fb or is_ig or "cannot parse data" in err_str.lower()):
+                for b_name in ["chrome", "firefox", "brave", "edge", "chromium"]:
+                    try:
+                        b_opts = dict(ydl_opts)
+                        b_opts["cookiesfrombrowser"] = (b_name, None, None, None)
+                        with yt_dlp.YoutubeDL(b_opts) as b_ydl:
+                            info = b_ydl.extract_info(url, download=False)
+                            if info:
+                                break
+                    except Exception:
+                        continue
+
+            # Attempt 2: If Facebook Reel, try converting to standard video watch URL
+            if not info and is_fb:
+                reel_match = re.search(r'facebook\.com/reel/(\d+)', url)
+                if reel_match:
+                    alt_url = f"https://www.facebook.com/watch/?v={reel_match.group(1)}"
+                    try:
+                        with yt_dlp.YoutubeDL(ydl_opts) as alt_ydl:
+                            info = alt_ydl.extract_info(alt_url, download=False)
+                    except Exception:
+                        pass
+
             if not info:
+                if is_fb and ("cannot parse data" in err_str.lower() or "login" in err_str.lower()):
+                    raise ValueError(
+                        "Facebook requires authentication (cookies) to access Reels and private videos. "
+                        "Please use the Universal Media Downloader browser extension to download directly from your browser, "
+                        "or add cookies in the Cookies menu."
+                    )
+                if extract_err:
+                    raise extract_err
                 raise ValueError("Could not extract video information from this URL.")
 
         raw_title = info.get("title") or "Video Download"
@@ -525,10 +630,15 @@ class DownloaderService:
             "postprocessor_hooks": [lambda d: self._postprocessor_hook(d, task, loop)],
             "quiet": True,
             "no_warnings": True,
+            "ignoreconfig": True,
             "windowsfilenames": True,
             "restrictfilenames": False,
             "ignoreerrors": "only_download",
         }
+
+        cookie_file = get_cookie_file()
+        if cookie_file:
+            ydl_opts["cookiefile"] = cookie_file
 
         referer = opts.get("referer")
         if referer:

@@ -109,6 +109,14 @@
           Engine Active
         </span>
 
+        <!-- Cookies / Auth Button -->
+        <button type="button" id="btn-cookies-modal" title="Manage authentication cookies (Facebook, Instagram, YouTube)"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-background hover:bg-accent hover:text-accent-foreground text-xs font-medium text-muted-foreground transition-colors shadow-2xs">
+          <i data-lucide="cookie" class="w-3.5 h-3.5 text-amber-500"></i>
+          <span id="cookies-btn-label">Cookies</span>
+          <span id="cookies-status-dot" class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+        </button>
+
         <!-- Theme Toggle Button -->
         <button type="button" id="theme-toggle" title="Toggle theme"
           class="inline-flex items-center justify-center rounded-md border border-border bg-background hover:bg-accent hover:text-accent-foreground h-8 w-8 text-muted-foreground transition-colors shadow-2xs">
@@ -188,6 +196,30 @@
           </button>
         </div>
       </form>
+
+      <!-- Auth / Platform Notice (shown when Facebook/Instagram auth is required or tips) -->
+      <div id="auth-help-banner" class="hidden rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-xs sm:text-sm text-foreground space-y-2.5 max-w-2xl mx-auto">
+        <div class="flex items-start gap-2.5">
+          <i data-lucide="shield-alert" class="w-4 h-4 text-amber-500 mt-0.5 shrink-0"></i>
+          <div class="space-y-1">
+            <h4 class="font-medium text-amber-400">Authentication Required for this Media</h4>
+            <p id="auth-help-message" class="text-muted-foreground text-xs leading-relaxed">
+              Facebook/Instagram requires login cookies to access Reels and private videos.
+            </p>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2 pt-1 border-t border-border/40">
+          <button type="button" id="btn-open-ext-guide" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity">
+            <i data-lucide="puzzle" class="w-3.5 h-3.5"></i> Use Browser Extension (1-Click)
+          </button>
+          <button type="button" id="btn-banner-open-cookies" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-border bg-background hover:bg-secondary text-xs font-medium transition-colors">
+            <i data-lucide="cookie" class="w-3.5 h-3.5 text-amber-500"></i> Add cookies.txt
+          </button>
+          <button type="button" id="btn-dismiss-auth-banner" class="ml-auto text-xs text-muted-foreground hover:text-foreground">
+            Dismiss
+          </button>
+        </div>
+      </div>
     </section>
 
     <!-- Video Analysis Card (Hidden until video is loaded) -->
@@ -453,6 +485,114 @@
     </section>
 
   </main>
+
+  <!-- Cookies & Auth Modal -->
+  <div id="cookies-modal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-card border border-border rounded-xl shadow-xl max-w-lg w-full p-5 sm:p-6 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-border">
+        <div class="flex items-center gap-2">
+          <i data-lucide="cookie" class="w-5 h-5 text-amber-500"></i>
+          <h3 class="font-semibold text-base text-foreground">Authentication & Cookies</h3>
+        </div>
+        <button type="button" id="btn-close-cookies-modal" class="text-muted-foreground hover:text-foreground p-1 rounded-md">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Current Status -->
+      <div id="cookies-status-card" class="rounded-lg border border-border bg-secondary/40 p-3.5 flex items-center justify-between">
+        <div class="space-y-0.5">
+          <div class="text-xs font-medium text-foreground flex items-center gap-2">
+            Status: <span id="cookies-status-text" class="text-muted-foreground">Checking...</span>
+          </div>
+          <div id="cookies-file-details" class="text-[11px] text-muted-foreground"></div>
+        </div>
+        <button type="button" id="btn-delete-cookies" class="hidden text-xs text-destructive hover:underline font-medium">
+          Remove
+        </button>
+      </div>
+
+      <!-- Instructions -->
+      <div class="text-xs text-muted-foreground space-y-2 leading-relaxed">
+        <p>Platforms like <strong>Facebook Reels</strong>, <strong>Instagram</strong>, and <strong>YouTube</strong> frequently block anonymous scrapers. Adding cookies lets the downloader act with your login session.</p>
+        <ol class="list-decimal list-inside space-y-1 text-[11px] text-foreground/80 pl-1">
+          <li>Export your cookies in Netscape format using a browser extension like <em>Get cookies.txt LOCALLY</em>.</li>
+          <li>Upload or paste the file contents below.</li>
+        </ol>
+      </div>
+
+      <!-- Upload / Paste -->
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-foreground mb-1.5">Upload cookies.txt File</label>
+          <input type="file" id="cookie-file-input" accept=".txt" class="block w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-border file:text-xs file:font-medium file:bg-secondary file:text-foreground hover:file:bg-secondary/80 cursor-pointer" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-foreground mb-1">Or Paste Netscape Cookie Text</label>
+          <textarea id="cookie-text-input" rows="4" placeholder="# Netscape HTTP Cookie File&#10;.facebook.com	TRUE	/	TRUE	..." class="w-full rounded-md border border-input bg-background p-2.5 text-[11px] font-mono text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"></textarea>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-border">
+        <button type="button" id="btn-cancel-cookies" class="px-3 py-1.5 rounded-md border border-border text-xs font-medium text-foreground hover:bg-secondary">
+          Close
+        </button>
+        <button type="button" id="btn-save-cookies" class="px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">
+          Save Cookies
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Extension Guide Modal -->
+  <div id="ext-guide-modal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-card border border-border rounded-xl shadow-xl max-w-lg w-full p-5 sm:p-6 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-border">
+        <div class="flex items-center gap-2">
+          <i data-lucide="puzzle" class="w-5 h-5 text-indigo-500"></i>
+          <h3 class="font-semibold text-base text-foreground">Browser Extension (1-Click Sniffer)</h3>
+        </div>
+        <button type="button" id="btn-close-ext-guide" class="text-muted-foreground hover:text-foreground p-1 rounded-md">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs leading-relaxed text-muted-foreground">
+        <p>The included extension runs directly in your Chrome/Brave/Edge browser and sniffs active video streams while you browse, completely bypassing bot blocks:</p>
+
+        <div class="space-y-2 text-foreground/90 bg-secondary/40 p-3 rounded-lg border border-border text-[11px]">
+          <div class="flex items-start gap-2">
+            <span class="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 font-bold">1</span>
+            <span>Open <code class="px-1.5 py-0.5 rounded bg-muted font-mono">chrome://extensions</code> in your browser.</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 font-bold">2</span>
+            <span>Turn ON <strong>Developer mode</strong> in the top-right corner.</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 font-bold">3</span>
+            <span>Click <strong>Load unpacked</strong> and select the extension folder:</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <input type="text" readonly id="ext-path-input" value="/home/user/code/sideProjects/download/extension" class="flex-1 font-mono text-[11px] px-2.5 py-1.5 rounded border border-border bg-background" />
+          <button type="button" id="btn-copy-ext-path" class="px-3 py-1.5 rounded bg-secondary hover:bg-secondary/80 text-xs font-medium border border-border shrink-0">
+            Copy Path
+          </button>
+        </div>
+
+        <p class="text-[11px] text-muted-foreground">Once installed, open any Facebook Reel in your browser, click the extension icon, and click <strong>🚀 Open in Web App</strong> to download in full quality!</p>
+      </div>
+
+      <div class="flex justify-end pt-2 border-t border-border">
+        <button type="button" id="btn-dismiss-ext-guide" class="px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast Notification Container -->
   <div id="toast-container"

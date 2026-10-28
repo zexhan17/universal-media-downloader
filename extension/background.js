@@ -30,6 +30,7 @@ function isMediaUrl(url) {
   if (lower.includes('.m3u8') || lower.includes('.mpd')) return true;
   if (/\.(mp4|webm|m4a|mkv|flv)($|\?)/i.test(url)) return true;
   if (lower.includes('/master.') || lower.includes('/playlist.') || lower.includes('/manifest.')) return true;
+  if ((lower.includes('fbcdn.net') || lower.includes('cdninstagram.com')) && (lower.includes('bytestart') || lower.includes('/v/t39.') || lower.includes('/v/t42.') || lower.includes('/v/t51.'))) return true;
 
   return false;
 }

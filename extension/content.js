@@ -63,10 +63,24 @@ function scanForVideos() {
         const resUrl = res.name || '';
         if (resUrl.startsWith('http') && !resUrl.startsWith('blob:')) {
           const lower = resUrl.toLowerCase();
-          if (lower.includes('.m3u8') || lower.includes('/master.') || lower.includes('/playlist.') || lower.includes('.mpd')) {
+          if (
+            lower.includes('.m3u8') ||
+            lower.includes('/master.') ||
+            lower.includes('/playlist.') ||
+            lower.includes('.mpd') ||
+            (/\.(mp4|webm)($|\?)/i.test(resUrl) && !lower.includes('analytics') && !lower.includes('doubleclick')) ||
+            (lower.includes('fbcdn.net') && (lower.includes('/v/t39.') || lower.includes('/v/t42.') || lower.includes('bytestart'))) ||
+            (lower.includes('cdninstagram.com') && (lower.includes('/v/t51.') || lower.includes('bytestart') || lower.includes('.mp4')))
+          ) {
+            let streamType = 'Media Stream';
+            if (lower.includes('.mpd')) streamType = 'DASH Stream (.mpd)';
+            else if (lower.includes('.m3u8')) streamType = 'HLS Stream (.m3u8)';
+            else if (lower.includes('.mp4') || lower.includes('fbcdn.net') || lower.includes('cdninstagram.com')) streamType = 'Direct Video';
+            else if (lower.includes('.webm')) streamType = 'Direct WebM';
+
             found.push({
               url: resUrl,
-              type: lower.includes('.mpd') ? 'DASH Stream (.mpd)' : 'HLS Stream (.m3u8)',
+              type: streamType,
               title: pageTitle,
               referer: currentUrl,
               source: 'network_cache'

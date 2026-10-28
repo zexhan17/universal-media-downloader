@@ -38,6 +38,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnFetchIcon = document.getElementById('btn-fetch-icon');
   const btnFetchText = document.getElementById('btn-fetch-text');
 
+  // Auth Help Banner Elements
+  const authHelpBanner = document.getElementById('auth-help-banner');
+  const authHelpMessage = document.getElementById('auth-help-message');
+  const btnOpenExtGuide = document.getElementById('btn-open-ext-guide');
+  const btnBannerOpenCookies = document.getElementById('btn-banner-open-cookies');
+  const btnDismissAuthBanner = document.getElementById('btn-dismiss-auth-banner');
+
+  // Cookies & Auth Modal Elements
+  const btnCookiesModal = document.getElementById('btn-cookies-modal');
+  const cookiesModal = document.getElementById('cookies-modal');
+  const btnCloseCookiesModal = document.getElementById('btn-close-cookies-modal');
+  const btnCancelCookies = document.getElementById('btn-cancel-cookies');
+  const btnSaveCookies = document.getElementById('btn-save-cookies');
+  const btnDeleteCookies = document.getElementById('btn-delete-cookies');
+  const cookieFileInput = document.getElementById('cookie-file-input');
+  const cookieTextInput = document.getElementById('cookie-text-input');
+  const cookiesStatusText = document.getElementById('cookies-status-text');
+  const cookiesFileDetails = document.getElementById('cookies-file-details');
+  const cookiesStatusDot = document.getElementById('cookies-status-dot');
+  const cookiesBtnLabel = document.getElementById('cookies-btn-label');
+
+  // Extension Guide Modal Elements
+  const extGuideModal = document.getElementById('ext-guide-modal');
+  const btnCloseExtGuide = document.getElementById('btn-close-ext-guide');
+  const btnDismissExtGuide = document.getElementById('btn-dismiss-ext-guide');
+  const btnCopyExtPath = document.getElementById('btn-copy-ext-path');
+  const extPathInput = document.getElementById('ext-path-input');
+
   // Video Preview Elements
   const videoCard = document.getElementById('video-card');
   const videoThumb = document.getElementById('video-thumb');
@@ -93,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize
   loadSystemPaths();
+  checkCookiesStatus();
 
   // Helper: Toast Notifications (shadcn Sonner / Toast style)
   function showToast(message, type = 'info') {
@@ -367,8 +396,19 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       renderVideoInfo(currentVideoInfo);
       showToast('Video information extracted successfully!', 'success');
+      if (authHelpBanner) authHelpBanner.classList.add('hidden');
     } catch (err) {
       showToast(err.message, 'error');
+      const msg = (err.message || '').toLowerCase();
+      if (msg.includes('facebook') || msg.includes('authentication') || msg.includes('cookies') || msg.includes('cannot parse data')) {
+        if (authHelpBanner) {
+          authHelpBanner.classList.remove('hidden');
+          if (authHelpMessage) {
+            authHelpMessage.textContent = err.message;
+          }
+          scrollToElement(authHelpBanner);
+        }
+      }
     } finally {
       btnFetchSpinner.classList.add('hidden');
       btnFetchIcon.classList.remove('hidden');
@@ -1179,6 +1219,163 @@ document.addEventListener('DOMContentLoaded', () => {
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cookies & Auth Management
+  // ---------------------------------------------------------------------------
+  async function checkCookiesStatus() {
+    try {
+      const res = await fetch('/api/cookies');
+      if (res.ok) {
+        const data = await res.json();
+        updateCookiesUI(data);
+      }
+    } catch (e) { }
+  }
+
+  function updateCookiesUI(data) {
+    if (data.configured) {
+      if (cookiesStatusDot) {
+        cookiesStatusDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
+      }
+      if (cookiesBtnLabel) cookiesBtnLabel.textContent = 'Cookies: Active';
+      if (cookiesStatusText) {
+        cookiesStatusText.textContent = 'Active';
+        cookiesStatusText.className = 'text-emerald-500 font-semibold';
+      }
+      if (cookiesFileDetails) {
+        cookiesFileDetails.textContent = `${data.filename || 'cookies.txt'} (${data.size_str || 'loaded'})`;
+      }
+      if (btnDeleteCookies) btnDeleteCookies.classList.remove('hidden');
+    } else {
+      if (cookiesStatusDot) {
+        cookiesStatusDot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400';
+      }
+      if (cookiesBtnLabel) cookiesBtnLabel.textContent = 'Cookies';
+      if (cookiesStatusText) {
+        cookiesStatusText.textContent = 'Not configured';
+        cookiesStatusText.className = 'text-muted-foreground';
+      }
+      if (cookiesFileDetails) cookiesFileDetails.textContent = 'No active cookies file found.';
+      if (btnDeleteCookies) btnDeleteCookies.classList.add('hidden');
+    }
+  }
+
+  // Open Cookies Modal
+  if (btnCookiesModal) {
+    btnCookiesModal.addEventListener('click', () => {
+      checkCookiesStatus();
+      if (cookiesModal) cookiesModal.classList.remove('hidden');
+    });
+  }
+  if (btnBannerOpenCookies) {
+    btnBannerOpenCookies.addEventListener('click', () => {
+      checkCookiesStatus();
+      if (cookiesModal) cookiesModal.classList.remove('hidden');
+    });
+  }
+  if (btnCloseCookiesModal) {
+    btnCloseCookiesModal.addEventListener('click', () => {
+      if (cookiesModal) cookiesModal.classList.add('hidden');
+    });
+  }
+  if (btnCancelCookies) {
+    btnCancelCookies.addEventListener('click', () => {
+      if (cookiesModal) cookiesModal.classList.add('hidden');
+    });
+  }
+
+  // Save Cookies (Upload file or text)
+  if (btnSaveCookies) {
+    btnSaveCookies.addEventListener('click', async () => {
+      let content = cookieTextInput ? cookieTextInput.value.trim() : '';
+
+      if (cookieFileInput && cookieFileInput.files && cookieFileInput.files[0]) {
+        const file = cookieFileInput.files[0];
+        try {
+          content = await file.text();
+        } catch (e) {
+          showToast('Could not read selected cookies file', 'error');
+          return;
+        }
+      }
+
+      if (!content) {
+        showToast('Please select a cookies.txt file or paste cookie text', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/cookies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content })
+        });
+        const result = await res.json();
+        if (res.ok) {
+          showToast('Cookies saved successfully!', 'success');
+          if (cookieTextInput) cookieTextInput.value = '';
+          if (cookieFileInput) cookieFileInput.value = '';
+          if (cookiesModal) cookiesModal.classList.add('hidden');
+          checkCookiesStatus();
+          if (authHelpBanner) authHelpBanner.classList.add('hidden');
+        } else {
+          showToast(result.detail || 'Failed to save cookies', 'error');
+        }
+      } catch (e) {
+        showToast('Error uploading cookies: ' + e.message, 'error');
+      }
+    });
+  }
+
+  // Delete Cookies
+  if (btnDeleteCookies) {
+    btnDeleteCookies.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/cookies', { method: 'DELETE' });
+        if (res.ok) {
+          showToast('Cookies file removed', 'info');
+          checkCookiesStatus();
+        }
+      } catch (e) {
+        showToast('Failed to delete cookies', 'error');
+      }
+    });
+  }
+
+  // Auth Banner Dismiss
+  if (btnDismissAuthBanner) {
+    btnDismissAuthBanner.addEventListener('click', () => {
+      if (authHelpBanner) authHelpBanner.classList.add('hidden');
+    });
+  }
+
+  // Extension Guide Modal
+  if (btnOpenExtGuide) {
+    btnOpenExtGuide.addEventListener('click', () => {
+      if (extGuideModal) extGuideModal.classList.remove('hidden');
+    });
+  }
+  if (btnCloseExtGuide) {
+    btnCloseExtGuide.addEventListener('click', () => {
+      if (extGuideModal) extGuideModal.classList.add('hidden');
+    });
+  }
+  if (btnDismissExtGuide) {
+    btnDismissExtGuide.addEventListener('click', () => {
+      if (extGuideModal) extGuideModal.classList.add('hidden');
+    });
+  }
+  if (btnCopyExtPath && extPathInput) {
+    btnCopyExtPath.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(extPathInput.value);
+        showToast('Extension folder path copied to clipboard!', 'success');
+      } catch (e) {
+        showToast('Failed to copy path', 'error');
+      }
+    });
   }
 
 });

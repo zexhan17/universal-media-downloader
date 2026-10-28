@@ -116,9 +116,14 @@ async def get_video_info(payload: VideoInfoRequest):
             info["title"] = payload.title
         if referer:
             info["referer"] = referer
-        return info
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to fetch video details: {str(e)}")
+        err_msg = str(e)
+        if "Cannot parse data" in err_msg and any(domain in url.lower() for domain in ["facebook.com", "fb.watch", "fb.me"]):
+            raise HTTPException(
+                status_code=400,
+                detail="Facebook requires authentication (cookies) to access Reels and private videos. Use the Universal Media Downloader browser extension to download directly from your browser, or add cookies in the Cookies menu."
+            )
+        raise HTTPException(status_code=400, detail=f"Failed to fetch video details: {err_msg}")
 
 
 @router.post("/download")
@@ -300,3 +305,42 @@ async def open_folder(payload: PathValidateRequest):
         return {"success": True, "message": "Opened folder in file manager"}
     except Exception as e:
         return {"success": False, "message": f"Could not launch file manager: {e}"}
+
+
+@router.get("/cookies")
+async def get_cookies_info():
+    """Check status of active cookies file."""
+    return downloader_service.get_cookie_status()
+
+
+@router.post("/cookies")
+async def update_cookies(request: Request):
+    """Save or update cookies.txt (via JSON or multipart file upload)."""
+    text_content = ""
+    content_type = request.headers.get("content-type", "")
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        file = form.get("file")
+        if file:
+            bytes_content = await file.read()
+            text_content = bytes_content.decode("utf-8", errors="ignore")
+    else:
+        try:
+            body = await request.json()
+            text_content = body.get("content", "")
+        except Exception:
+            pass
+
+    if not text_content or not text_content.strip():
+        raise HTTPException(status_code=400, detail="Cookie content cannot be empty.")
+
+    saved_path = downloader_service.save_cookies(text_content)
+    return {"success": True, "message": "Cookies saved successfully.", "path": str(saved_path)}
+
+
+@router.delete("/cookies")
+async def delete_cookies_file():
+    """Remove active cookies.txt file."""
+    deleted = downloader_service.delete_cookies()
+    return {"success": True, "message": "Cookies removed." if deleted else "No cookies file found."}
+
