@@ -12,6 +12,13 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
+# Auto-bootstrap into project virtualenv if invoked via external/system python
+venv_python = BASE_DIR / "venv" / "bin" / "python3"
+if venv_python.exists() and os.environ.get("_UMD_BOOTSTRAPPED") != "1":
+    if Path(sys.prefix).resolve() != (BASE_DIR / "venv").resolve():
+        os.environ["_UMD_BOOTSTRAPPED"] = "1"
+        os.execv(str(venv_python), [str(venv_python)] + sys.argv)
+
 LOG_FILE = BASE_DIR / "server.log"
 
 def main():

@@ -116,6 +116,7 @@ async def get_video_info(payload: VideoInfoRequest):
             info["title"] = payload.title
         if referer:
             info["referer"] = referer
+        return info
     except Exception as e:
         err_msg = str(e)
         if "Cannot parse data" in err_msg and any(domain in url.lower() for domain in ["facebook.com", "fb.watch", "fb.me"]):

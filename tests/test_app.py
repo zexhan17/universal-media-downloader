@@ -244,3 +244,35 @@ def test_facebook_error_detail_formatting():
     detail = resp.json().get("detail", "")
     assert "Facebook requires authentication" in detail or "Failed to fetch video details" in detail
 
+
+def test_video_info_endpoint_returns_payload(monkeypatch):
+    """Ensure /api/info returns the full video metadata and resolutions payload (not null)."""
+    mock_info = {
+        "title": "Sample Wildlife Video",
+        "id": "abc123xyz",
+        "url": "https://www.youtube.com/watch?v=abc123xyz",
+        "thumbnail": "https://example.com/thumb.jpg",
+        "duration": 120,
+        "duration_str": "02:00",
+        "channel": "Wildlife Channel",
+        "view_count": "1,000 views",
+        "platform": {"name": "YouTube", "icon": "youtube", "color": "text-red-500"},
+        "resolutions": [
+            {"height": 1080, "label": "Full HD (1080p)", "res_key": "1080p", "fps_str": "60fps", "size_str": "50 MB"}
+        ],
+        "subtitles": [],
+        "has_subtitles": False,
+        "default_sub_lang": "en",
+        "default_resolution": "1080p"
+    }
+    monkeypatch.setattr(downloader_service, "extract_info", lambda *args, **kwargs: mock_info)
+
+    resp = client.post("/api/info", json={"url": "https://www.youtube.com/watch?v=abc123xyz"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data is not None
+    assert data["title"] == "Sample Wildlife Video"
+    assert len(data["resolutions"]) == 1
+    assert data["resolutions"][0]["res_key"] == "1080p"
+
+

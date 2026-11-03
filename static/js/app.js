@@ -389,6 +389,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const data = await response.json();
+      if (!data || typeof data !== 'object') {
+        throw new Error('Received invalid or empty video information from server.');
+      }
       currentVideoInfo = data;
       if (reqReferer) currentVideoInfo.referer = reqReferer;
       if (reqTitle && (!currentVideoInfo.title || currentVideoInfo.title === 'Video Download' || currentVideoInfo.title === 'master')) {
@@ -419,6 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Render Video Metadata in UI
   function renderVideoInfo(info) {
+    if (!info) return;
     videoCard.classList.remove('hidden');
     videoThumb.src = info.thumbnail || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=60';
     videoDuration.textContent = info.duration_str || '00:00';
