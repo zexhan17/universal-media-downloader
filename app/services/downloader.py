@@ -77,6 +77,25 @@ def sanitize_filename_clean(filename: str) -> str:
     return cleaned if cleaned else "video"
 
 
+class YtdlLogger:
+    """Logger to capture warnings and errors from yt-dlp executions."""
+    def __init__(self):
+        self.errors: List[str] = []
+        self.warnings: List[str] = []
+
+    def debug(self, msg: str):
+        pass
+
+    def warning(self, msg: str):
+        self.warnings.append(str(msg))
+
+    def error(self, msg: str):
+        self.errors.append(str(msg))
+
+    def last_error(self) -> str:
+        return self.errors[-1] if self.errors else ""
+
+
 class TaskStatus:
     QUEUED = "queued"
     DOWNLOADING = "downloading"
@@ -281,6 +300,7 @@ class DownloaderService:
         ydl_opts["http_headers"] = http_headers
         if NODE_BIN:
             ydl_opts["js_runtimes"] = {"node": {"path": NODE_BIN}}
+            ydl_opts["remote_components"] = ["ejs:github"]
 
         info = None
         extract_err = None
@@ -619,6 +639,7 @@ class DownloaderService:
                 format_spec = "bestvideo*+bestaudio/best"
                 format_sort = ["res", "fps", "size", "br"]
 
+        ytdl_logger = YtdlLogger()
         ydl_opts: Dict[str, Any] = {
             "format": format_spec,
             "format_sort": format_sort,
@@ -633,19 +654,37 @@ class DownloaderService:
             "ignoreconfig": True,
             "windowsfilenames": True,
             "restrictfilenames": False,
-            "ignoreerrors": "only_download",
+            "ignoreerrors": False,
+            "logger": ytdl_logger,
         }
 
         cookie_file = get_cookie_file()
         if cookie_file:
             ydl_opts["cookiefile"] = cookie_file
 
+        http_headers: Dict[str, str] = {
+            "User-Agent": opts.get("user_agent") or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
         referer = opts.get("referer")
         if referer:
-            ydl_opts.setdefault("http_headers", {})["Referer"] = referer
+            http_headers["Referer"] = referer
+            try:
+                from urllib.parse import urlparse
+                parsed = urlparse(referer)
+                if parsed.scheme and parsed.netloc:
+                    http_headers["Origin"] = f"{parsed.scheme}://{parsed.netloc}"
+            except Exception:
+                pass
+        custom_headers = opts.get("headers")
+        if custom_headers and isinstance(custom_headers, dict):
+            http_headers.update(custom_headers)
+        ydl_opts["http_headers"] = http_headers
 
         if NODE_BIN:
             ydl_opts["js_runtimes"] = {"node": {"path": NODE_BIN}}
+            ydl_opts["remote_components"] = ["ejs:github"]
 
         postprocessors = []
 
@@ -688,6 +727,10 @@ class DownloaderService:
             if task.cancel_requested:
                 raise yt_dlp.utils.DownloadCancelled("Download canceled by user.")
 
+            if not info:
+                err_msg = ytdl_logger.last_error() or "Download failed: media extractor returned no data."
+                raise yt_dlp.utils.DownloadError(err_msg)
+
             raw_title = info.get("title", task.title)
             task.title = raw_title.replace("\n", " ").strip()
             task.thumbnail = info.get("thumbnail") or task.thumbnail
@@ -708,7 +751,7 @@ class DownloaderService:
                         downloaded_file = str(file_entry)
                         break
 
-            if not downloaded_file:
+            if not downloaded_file and info:
                 vid_id = info.get("id")
                 if vid_id:
                     for file_entry in target_dir.glob(f"*{vid_id}*"):
@@ -787,13 +830,14 @@ class DownloaderService:
             task.stage = "Connecting to media source..."
             self._notify_subscribers(task, loop)
 
+            has_subs = bool(task.options.get("subtitles_enabled", False))
             try:
-                self._execute_ytdlp_download(task, loop, with_subtitles=task.options.get("subtitles_enabled", False))
+                self._execute_ytdlp_download(task, loop, with_subtitles=has_subs)
             except Exception as e:
                 if task.cancel_requested:
                     raise yt_dlp.utils.DownloadCancelled("Download canceled by user.")
                 err_str = str(e).lower()
-                if "subtitle" in err_str or "429" in err_str or "timedtext" in err_str:
+                if has_subs and ("subtitle" in err_str or "429" in err_str or "timedtext" in err_str or "caption" in err_str):
                     print(f"Notice: Subtitle error ({e}), retrying download without subtitles...")
                     task.stage = "Captions rate-limited, downloading full video..."
                     self._notify_subscribers(task, loop)

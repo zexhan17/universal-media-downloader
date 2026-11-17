@@ -112,7 +112,7 @@ async def get_video_info(payload: VideoInfoRequest):
                 headers=payload.headers
             )
         )
-        if payload.title and info.get("title") in ("Video Download", "Watch Swapped", "master", "index", "video", ""):
+        if info and payload.title and info.get("title") in ("Video Download", "Watch Swapped", "master", "index", "video", ""):
             info["title"] = payload.title
         if referer:
             info["referer"] = referer

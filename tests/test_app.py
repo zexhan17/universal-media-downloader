@@ -276,3 +276,78 @@ def test_video_info_endpoint_returns_payload(monkeypatch):
     assert data["resolutions"][0]["res_key"] == "1080p"
 
 
+def test_ytdlp_logger_and_none_info_resilience(tmp_path):
+    """Ensure YtdlLogger captures errors and _execute_ytdlp_download never crashes with 'NoneType' get."""
+    import yt_dlp
+    from app.services.downloader import YtdlLogger
+
+    logger = YtdlLogger()
+    logger.error("ERROR: Unable to download video subtitles for 'en': HTTP Error 429: Too Many Requests")
+    assert "429" in logger.last_error()
+
+    task = downloader_service.create_task("https://example.com/mock", {"subtitles_enabled": True})
+    task.target_dir = tmp_path
+
+    # Simulate yt-dlp returning None from extract_info
+    class MockYDL:
+        def __init__(self, opts=None):
+            self.opts = opts or {}
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def extract_info(self, url, download=True):
+            if "logger" in self.opts:
+                self.opts["logger"].error("ERROR: Unable to download video subtitles for 'en': HTTP Error 429: Too Many Requests")
+            return None
+
+    import unittest.mock
+    import asyncio
+    loop = asyncio.new_event_loop()
+
+    with unittest.mock.patch("yt_dlp.YoutubeDL", MockYDL):
+        with pytest.raises(yt_dlp.utils.DownloadError) as excinfo:
+            downloader_service._execute_ytdlp_download(task, loop, with_subtitles=True)
+        assert "429" in str(excinfo.value)
+        assert "NoneType" not in str(excinfo.value)
+
+
+def test_download_worker_subtitle_rate_limit_fallback(tmp_path):
+    """Ensure _download_worker seamlessly falls back to downloading without subtitles on 429/subtitle error."""
+    import asyncio
+    import unittest.mock
+    import yt_dlp
+
+    task = downloader_service.create_task(
+        "https://example.com/mock_video",
+        {
+            "subtitles_enabled": True,
+            "subtitle_langs": ["en"],
+            "save_mode": "browser"
+        }
+    )
+    task.target_dir = tmp_path
+
+    calls = []
+
+    def mock_execute(t, loop, with_subtitles=True):
+        calls.append(with_subtitles)
+        if with_subtitles:
+            raise yt_dlp.utils.DownloadError("ERROR: Unable to download video subtitles for 'en': HTTP Error 429: Too Many Requests")
+        # Simulating successful download without subtitles
+        dummy = tmp_path / f"video [{t.task_id[:6]}].mp4"
+        dummy.write_bytes(b"dummy video content")
+        t.filepath = str(dummy)
+        t.filename = dummy.name
+        t.file_size = len(b"dummy video content")
+
+    loop = asyncio.new_event_loop()
+    with unittest.mock.patch.object(downloader_service, "_execute_ytdlp_download", side_effect=mock_execute):
+        downloader_service._download_worker(task, loop)
+
+    assert calls == [True, False], "Worker should first attempt with subtitles, then retry without subtitles"
+    assert task.status == TaskStatus.COMPLETED
+    assert task.error is None
+
+
+
